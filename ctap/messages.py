@@ -57,11 +57,11 @@ import ctap.constants
 
 logging.basicConfig()
 log = logging.getLogger('messages')
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 ctaplog = logging.getLogger('messages.ctap')
-ctaplog.setLevel(logging.DEBUG)
+ctaplog.setLevel(logging.INFO)
 usbhid = logging.getLogger('messages.usbhid')
-usbhid.setLevel(logging.DEBUG)
+usbhid.setLevel(logging.INFO)
 
 class CTAPHIDCMD(ABC):
     """Abstract CMD that provides core structure that all other requests

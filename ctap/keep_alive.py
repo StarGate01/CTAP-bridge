@@ -39,7 +39,7 @@ import ctap.constants
 
 logging.basicConfig()
 log = logging.getLogger('keep_alive')
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 
 class CTAPHIDKeepAlive():
     """Class to automatically send keep-alive messages during the processing of a
@@ -86,7 +86,7 @@ class CTAPHIDKeepAlive():
         """
         if self._cid is None:
             raise Exception("Keep-alive channel not set")
-        log.debug("Start keep-alive called")
+        log.info("Start keep-alive called")
         self._max = max_val/1000
         self._keep_alive_thread = threading.Thread(target=self._keep_alive)
         self._running = True
@@ -122,7 +122,7 @@ class CTAPHIDKeepAlive():
             time.sleep(self._interval)
             self._elapsed = self._elapsed + self._interval
             if self._elapsed > self._max:
-                log.debug("Max keep-alive exceeded - will stop")
+                log.warn("Max keep-alive exceeded - will stop")
                 self._running = False
-        log.debug("Keep-alive ended")
+        log.info("Keep-alive ended")
         self._cid = None

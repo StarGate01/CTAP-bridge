@@ -37,9 +37,9 @@ from ctap.messages import (CTAPHIDCMD, CTAPHIDCancelResponse, CTAPHIDErrorRespon
 
 logging.basicConfig()
 log = logging.getLogger('transaction')
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 ctaplog = logging.getLogger('transaction.ctap')
-ctaplog.setLevel(logging.DEBUG)
+ctaplog.setLevel(logging.INFO)
 
 @unique
 class TRANSACTION_STATE(Enum):

@@ -50,11 +50,11 @@ from hid.usb import USBHID
 
 logging.basicConfig()
 log = logging.getLogger('ctap')
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 ctaplog = logging.getLogger('ctap.ctap')
-ctaplog.setLevel(logging.DEBUG)
+ctaplog.setLevel(logging.INFO)
 auth = logging.getLogger('ctap.auth')
-auth.setLevel(logging.DEBUG)
+auth.setLevel(logging.INFO)
 
 class CTAPHID(USBHIDListener):
     """Acts a USBHIDListener, processing the incoming
@@ -124,16 +124,16 @@ class CTAPHID(USBHIDListener):
         """
         if not self._channel_lock_id is None and packet.get_cid() != self._channel_lock_id:
             if datetime.now() < self._channel_lock_expires:
-                ctaplog.debug("Error channel is locked")
+                ctaplog.warn("Error channel is locked")
                 self.send_error_response(CTAPHIDErrorResponse(self._transaction.request.get_cid(),
                     ctap.constants.CTAPHID_ERROR.ERR_CHANNEL_BUSY))
                 return
-            ctaplog.debug("Lock has expired, clearing")
+            ctaplog.info("Lock has expired, clearing")
             self._channel_lock_expires = None
             self._channel_lock_id = None
 
         if packet.CMDTYPE == ctap.constants.CMD_TYPE.INITIALIZATION:
-            log.debug("Received initialization packet")
+            log.info("Received initialization packet")
 
             ctap_msg = CTAPHIDCMD.create_message(packet)
             ctaplog.debug("Received initialization packet: %s", ctap_msg)
@@ -147,7 +147,7 @@ class CTAPHID(USBHIDListener):
                 self._transaction.set_request(ctap_msg)
                 ctaplog.debug("Created transaction: %s", self._transaction)
         elif packet.CMDTYPE == ctap.constants.CMD_TYPE.CONTINUATION:
-            ctaplog.debug("Received Continuation Packet - seqNo: %s", packet.get_sequence())
+            ctaplog.info("Received Continuation Packet - seqNo: %s", packet.get_sequence())
             self._transaction.request.append_continuation_packet(packet)
 
         #If we have finished receiving packets, process the request
@@ -175,7 +175,7 @@ class CTAPHID(USBHIDListener):
                     exception.get_error_code()))
 
         else:
-            ctaplog.debug("Message incomplete remaining bytes: %s",
+            ctaplog.info("Message incomplete remaining bytes: %s",
                 self._transaction.request.remaining_bytes)
 
     def send_error_response(self, msg_response: CTAPHIDErrorResponse, is_init_error:bool=False):
@@ -364,7 +364,7 @@ class CTAPHID(USBHIDListener):
             self._transaction.set_response(response)
             self.send_response(self._transaction)
         else:
-            ctaplog.debug("Channel exists, resync channel")
+            ctaplog.info("Channel exists, resync channel")
             self._transaction.reset()
             response = CTAPHIDInitResponse(self._authenticator.get_version())
             response.set_nonce(init_request.get_payload())

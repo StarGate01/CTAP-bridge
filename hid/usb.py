@@ -41,9 +41,9 @@ from hid.listeners import USBHIDListener
 
 logging.basicConfig()
 log = logging.getLogger('usb')
-log.setLevel(logging.DEBUG)
+log.setLevel(logging.INFO)
 usblog = logging.getLogger('usb.usbhid')
-usblog.setLevel(logging.DEBUG)
+usblog.setLevel(logging.INFO)
 
 class USBHID:
     """Provides a class to open and read from a USB device
@@ -73,7 +73,7 @@ class USBHID:
         self._write_thread = threading.Thread(target=self._write)
         self._write_thread.setDaemon(True)
         self._write_thread.start()
-        log.debug("Started listening threads")
+        log.info("Started listening threads")
 
     def add_transaction_to_queue(self, transaction: CTAPHIDTransaction):
         """Adds a transaction to the write queue. When written the
@@ -112,7 +112,7 @@ class USBHID:
         """Shutdown the device
         """
         self._running = False
-        log.debug("Shutdown called")
+        log.info("Shutdown called")
 
 
     def _write(self):
@@ -128,7 +128,11 @@ class USBHID:
             packets = transaction.response.get_hid_packets()
             for packet in packets:
                 usblog.debug("\twriting bytes from packet: %s", packet.get_bytes().hex())
-                os.write(self._device, packet.get_bytes())
+                try:
+                    os.write(self._device, packet.get_bytes())
+                except BrokenPipeError:
+                    log.error("Broken pipe")
+                    self.shutdown()
             usblog.debug("Finished writing transaction")
             self._listener.response_sent(transaction)
 
@@ -149,4 +153,4 @@ class USBHID:
                 self._listener.received_packet(hid_packet)
             except Exception:
                 log.error("Exception reading from device", exc_info=True)
-        log.debug("USBHID no longer listening")
+        log.info("USBHID no longer listening")

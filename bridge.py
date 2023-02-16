@@ -28,7 +28,7 @@ log = logging.getLogger('bridge')
 log.setLevel(logging.DEBUG)
 
 VERSION = AuthenticatorVersion(1,0,0,0)
-KEEP_ALIVE_TIME_MS=15000
+KEEP_ALIVE_TIME_MS=120000
 
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
 APDU_SELECT_RESP = [0x46, 0x49, 0x44, 0x4F, 0x5F, 0x32, 0x5F, 0x30]
@@ -74,11 +74,11 @@ class Bridge():
             self._card.disconnect()
         except:
             pass
-        log.debug("Tearing down USB device")
+        log.info("Tearing down USB device")
         os.system(scripts / "teardown_ctaphid.sh")
 
     def start(self):
-        log.debug("Setting up USB device")
+        log.info("Setting up USB device")
         os.system(scripts / "setup_ctaphid.sh")
         timeout = 0
         while not os.path.exists("/dev/ctaphid"):
@@ -110,7 +110,7 @@ class Bridge():
     def process_cbor(self, cbor_data:bytes, keep_alive: CTAPHIDKeepAlive, cid:bytes=None)->bytes:
         keep_alive.start(KEEP_ALIVE_TIME_MS)
         cmd = cbor_data[:1]
-        log.debug("Received CBOR command: %s", AUTHN_CMD(cmd).name)
+        log.info("Transmitting CTAP command: %s", AUTHN_CMD(cmd).name)
 
         res = bytes([])
         err = None
@@ -186,16 +186,12 @@ class Bridge():
         if(not err is None):
             raise err
         else:
-            print(res.hex())
             return res
 
     def process_wink(self, payload:bytes, keep_alive: CTAPHIDKeepAlive)->bytes:
         log.info("WINK received")
-        os.system(scripts / "notify.sh 'FIDO2 NFC Token' 'A service requests your attention.'")
+        os.system(scripts / "notify.sh 'FIDO2 NFC Token' 'A service requests your attention.' 'device'")
         return bytes([ 0x00 ])
-
-    def process_new_transaction(self):
-        os.system(scripts / "notify.sh 'FIDO2 NFC Token' 'A service has opened a connection.'")
 
     def get_version(self)->AuthenticatorVersion:
         return VERSION
@@ -219,7 +215,7 @@ def monitor():
             try:
                 card = request.waitforcard()
                 log.info("Found FIDO2 card on %s", str(card.connection.getReader()))
-                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(card.connection.getReader()) + "'"))
+                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(card.connection.getReader()) + "' 'device.added'"))
                 bridge.set_card(card.connection)
             except:
                 try:

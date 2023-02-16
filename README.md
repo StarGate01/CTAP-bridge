@@ -10,6 +10,8 @@ Linux is required, or any other POSIX system which supports configFS, USB gadget
 
 If your system has a host USB OTG emulation chip, you can load that module instead of the dummy driver to proxy the connection to a physical interface.
 
+For notifications, `notify-send` is used, so make sure it is installed and a suitable backend exists.
+
 ### Kernel
 
 Ensure that the modules `dummy_hcd` and `libcomposite` are loaded. The directory `/sys/kernel/config/usb_gadget` should be available.

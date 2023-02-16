@@ -134,9 +134,9 @@ class Bridge():
             return res
 
     def process_wink(self, payload:bytes, keep_alive: CTAPHIDKeepAlive)->bytes:
-        log.info("WINK ;)")
-        res = bytes([])
-        return res
+        log.info("WINK received")
+        os.system(scripts / "notify_wink.sh")
+        return bytes([])
 
     def get_version(self)->AuthenticatorVersion:
         return VERSION

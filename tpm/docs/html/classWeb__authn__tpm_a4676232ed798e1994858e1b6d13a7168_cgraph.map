@@ -1,7 +1,0 @@
-<map id="Web_authn_tpm::sign_using_rp_key" name="Web_authn_tpm::sign_using_rp_key">
-<area shape="rect" id="node1" title=" " alt="" coords="5,49,168,90"/>
-<area shape="rect" id="node2" href="$Ecdsa__sign_8cpp.html#a54bf43ed2fb4fbf27ebb993857a056bb" title=" " alt="" coords="226,5,321,32"/>
-<area shape="rect" id="node4" href="$Tpm__error_8cpp.html#a44ed3f38d38c4a620f05e94de141715c" title=" " alt="" coords="216,56,331,83"/>
-<area shape="rect" id="node5" href="$Ibmtss__helpers_8h.html#a4380fc16926ca481b659335f3e6f2adb" title=" " alt="" coords="220,107,327,133"/>
-<area shape="rect" id="node3" href="$Tpm__param_8h.html#ac1d471c300c1149a4d82fa3dc953b875" title=" " alt="" coords="379,5,475,32"/>
-</map>

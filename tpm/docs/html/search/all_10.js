@@ -1,8 +1,0 @@
-var searchData=
-[
-  ['uninstall_5ftpm_128',['uninstall_tpm',['../Web__authn__access__tpm_8cpp.html#ac490dbc0b177cfc6a7f6e5d08ba7f6a3',1,'uninstall_tpm(void *v_tpm_ptr):&#160;Web_authn_access_tpm.cpp'],['../Web__authn__access__tpm_8h.html#ac490dbc0b177cfc6a7f6e5d08ba7f6a3',1,'uninstall_tpm(void *v_tpm_ptr):&#160;Web_authn_access_tpm.cpp']]],
-  ['unmarshal_5fattest_5fdata_5fb_129',['unmarshal_attest_data_B',['../Marshal__data_8cpp.html#a775468968ef8cf8741443bbeaf73b201',1,'unmarshal_attest_data_B(Byte_buffer &amp;atd_bb, TPMS_ATTEST *attest_data_ptr):&#160;Marshal_data.cpp'],['../Marshal__data_8h.html#a775468968ef8cf8741443bbeaf73b201',1,'unmarshal_attest_data_B(Byte_buffer &amp;atd_bb, TPMS_ATTEST *attest_data_ptr):&#160;Marshal_data.cpp']]],
-  ['unmarshal_5fprivate_5fdata_5fb_130',['unmarshal_private_data_B',['../Marshal__data_8cpp.html#aebd5076f421051858b8f0cc3329ea8fa',1,'unmarshal_private_data_B(Byte_buffer &amp;pd_bb, TPM2B_PRIVATE *private_data_ptr):&#160;Marshal_data.cpp'],['../Marshal__data_8h.html#aebd5076f421051858b8f0cc3329ea8fa',1,'unmarshal_private_data_B(Byte_buffer &amp;pd_bb, TPM2B_PRIVATE *private_data_ptr):&#160;Marshal_data.cpp']]],
-  ['unmarshal_5fpublic_5fdata_5fb_131',['unmarshal_public_data_B',['../Marshal__data_8cpp.html#ac187d001c874d13673fb722247663d72',1,'unmarshal_public_data_B(Byte_buffer &amp;pd_bb, TPM2B_PUBLIC *public_data_ptr):&#160;Marshal_data.cpp'],['../Marshal__data_8h.html#ac187d001c874d13673fb722247663d72',1,'unmarshal_public_data_B(Byte_buffer &amp;pd_bb, TPM2B_PUBLIC *public_data_ptr):&#160;Marshal_data.cpp']]],
-  ['unset_132',['unset',['../Tss__setup_8h.html#aa7d66b33442c0d045c371c7d8359f123ae2181b5014a67159cc230c8fe0d6c5b6',1,'Tss_setup.h']]]
-];

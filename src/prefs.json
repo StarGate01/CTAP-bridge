@@ -1,4 +1,0 @@
-{
-    "resident_key": true,
-    "auth_store":"./data/auth_store.enc"
-}

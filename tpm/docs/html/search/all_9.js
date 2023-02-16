@@ -1,8 +1,0 @@
-var searchData=
-[
-  ['load_5fkey_44',['load_key',['../Load__key_8cpp.html#ad3b388ef6af8886a001ba05fe41332f0',1,'load_key(TSS_CONTEXT *tss_context, std::string parent_auth, TPM_HANDLE parent_handle, TPM2B_PUBLIC tpm_public, TPM2B_PRIVATE tpm_private, Load_Out *out):&#160;Load_key.cpp'],['../Load__key_8h.html#a6bd68dc12d25f9f11d9f1dd5efce3cf3',1,'load_key(TSS_CONTEXT *tssContext, std::string parent_auth, TPM_HANDLE parent_handle, TPM2B_PUBLIC tpm_public, TPM2B_PRIVATE tpm_private, Load_Out *out):&#160;Load_key.cpp']]],
-  ['load_5fkey_2ecpp_45',['Load_key.cpp',['../Load__key_8cpp.html',1,'']]],
-  ['load_5fkey_2eh_46',['Load_key.h',['../Load__key_8h.html',1,'']]],
-  ['load_5frp_5fkey_47',['load_rp_key',['../classWeb__authn__tpm.html#a8a06ad2b6d5202454dc079127b1f7249',1,'Web_authn_tpm::load_rp_key()'],['../Web__authn__access__tpm_8cpp.html#a155cdfc7f684c492b054266f09653c19',1,'load_rp_key(void *v_tpm_ptr, Key_data kd, Byte_array relying_party, Byte_array user_auth):&#160;Web_authn_access_tpm.cpp'],['../Web__authn__access__tpm_8h.html#a155cdfc7f684c492b054266f09653c19',1,'load_rp_key(void *v_tpm_ptr, Key_data kd, Byte_array relying_party, Byte_array user_auth):&#160;Web_authn_access_tpm.cpp']]],
-  ['load_5fuser_5fkey_48',['load_user_key',['../classWeb__authn__tpm.html#a28316c1afa6dd7ee4e043c32a2c9f376',1,'Web_authn_tpm::load_user_key()'],['../Web__authn__access__tpm_8cpp.html#a8eb1e36ecadc2710fb54e9ffa4487fec',1,'load_user_key(void *v_tpm_ptr, Key_data kd, Byte_array user):&#160;Web_authn_access_tpm.cpp'],['../Web__authn__access__tpm_8h.html#a8eb1e36ecadc2710fb54e9ffa4487fec',1,'load_user_key(void *v_tpm_ptr, Key_data kd, Byte_array user):&#160;Web_authn_access_tpm.cpp']]]
-];

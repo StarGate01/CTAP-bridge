@@ -167,3 +167,4 @@ data/
 # CMake build files
 **/build
 
+.direnv/

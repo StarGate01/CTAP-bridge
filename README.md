@@ -6,7 +6,7 @@ This project has been forked from the *Virtual WebAuthn Authenticator* project a
 
 ## Setup
 
-Linux is required, or any other POSIX system which supports configFS, USB gadgets, and pyUSB via libusb.
+Linux is required, or any other POSIX system which supports configFS, USB gadgets, and pyUSB via libusb. The script also requires root permissions.
 
 If your system has a host USB OTG emulation chip, you can load that module instead of the dummy driver to proxy the connection to a physical interface.
 

@@ -12,6 +12,7 @@ import usb.util
 from hid.ctap import CTAPHID
 from hid.usb import USBHID
 from ctap.constants import AUTHN_CMD, CTAP_STATUS_CODE
+from ctap.exceptions import CTAPHIDException
 from ctap.keep_alive import CTAPHIDKeepAlive
 from bridge.datatypes import AuthenticatorVersion, BridgeException
 
@@ -109,7 +110,7 @@ class Bridge():
     def process_cbor(self, cbor_data:bytes, keep_alive: CTAPHIDKeepAlive, cid:bytes=None)->bytes:
         keep_alive.start(KEEP_ALIVE_TIME_MS)
         cmd = cbor_data[:1]
-        log.debug("Received %s CBOR: %s", AUTHN_CMD(cmd).name, cbor_data.hex())
+        log.debug("Received CBOR command: %s", AUTHN_CMD(cmd).name)
 
         res = bytes([])
         err = None
@@ -118,25 +119,83 @@ class Bridge():
             if(self._card is None):
                 raise NoCardException(hresult=0, message="No card connected yet")
 
-            nfc_data = bytes([ 0x80, 0x10, 0x00, 0x00, len(cbor_data) ]) + cbor_data + bytes([ 0x00 ])
+            # Chaining out
+            data_out_index = 0
+            data_out_remain = len(cbor_data)
+            while(data_out_remain > 0):
+                nfc_data_out = [ 0x80, 0x10, 0x00, 0x00 ]
+                last_chain = True
+                data_out_size = data_out_remain
+                if (data_out_remain > 256):
+                    last_chain = False
+                    data_out_size = 256
+                    data_out_remain -= 256
+                    data_out_index += 256
+                    nfc_data_out[0] = 0x90
+                else:
+                    data_out_remain = 0
 
-            self._card.transmit(APDU_SELECT)
-            
+                nfc_data_out += [ data_out_size ]
+                nfc_data_out += cbor_data[data_out_index:(data_out_index + data_out_size)]
+                nfc_data_out += [ 0x00 ]
+
+                # Chaining in
+                nfc_res, sw1, sw2 = self._card.transmit(nfc_data_out)
+                data_in_done = False
+                data_in_first = True
+                ctap_err = CTAP_STATUS_CODE.CTAP1_ERR_OTHER
+                while(not data_in_done):
+                    # More data to retrieve
+                    if(sw1 == 0x61):
+                        if(data_in_first):
+                            data_in_first = False
+                            ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
+                            res += bytes(nfc_res[1:])
+                        else:
+                            res += bytes(nfc_res)
+                        nfc_res, sw1, sw2 = self._card.transmit([0x80, 0xC0, 0x00, 0x00, sw2])
+                        continue
+                    # APDU error
+                    if(not (sw1 == 0x90 and sw2 == 0x00)):
+                        log.error("APDU error: sw1=%s, sw2=%s", sw1, sw2)
+                        raise BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, "Unexpected APDU response status code")
+                    else:
+                        # Success
+                        data_in_done = True
+                        if(data_in_first):
+                            ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
+                        if(not ctap_err is CTAP_STATUS_CODE.CTAP2_OK):
+                            log.error("CTAP error: %s", ctap_err)
+                            raise CTAPHIDException(ctap_err)
+                        else:
+                            if(data_in_first):
+                                res += bytes(nfc_res[1:])
+                            else:
+                                res += bytes(nfc_res)
+
+        except BridgeException as e:
+            err = e
+        except CTAPHIDException as e:
+            err = e
         except Exception as e:
             log.error("Card error: %s", e)
-            err = e
+            err = BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, err)
 
         keep_alive.stop()
 
         if(not err is None):
-            raise BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, err)
+            raise err
         else:
+            print(res.hex())
             return res
 
     def process_wink(self, payload:bytes, keep_alive: CTAPHIDKeepAlive)->bytes:
         log.info("WINK received")
-        os.system(scripts / "notify.sh 'FIDO2 Token' 'A service requests your attention.'")
-        return bytes([])
+        os.system(scripts / "notify.sh 'FIDO2 NFC Token' 'A service requests your attention.'")
+        return bytes([ 0x00 ])
+
+    def process_new_transaction(self):
+        os.system(scripts / "notify.sh 'FIDO2 NFC Token' 'A service has opened a connection.'")
 
     def get_version(self)->AuthenticatorVersion:
         return VERSION
@@ -160,7 +219,7 @@ def monitor():
             try:
                 card = request.waitforcard()
                 log.info("Found FIDO2 card on %s", str(card.connection.getReader()))
-                os.system(scripts / ("notify.sh 'FIDO2 Token' 'Found FIDO2 token on " + str(card.connection.getReader()) + "'"))
+                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(card.connection.getReader()) + "'"))
                 bridge.set_card(card.connection)
             except:
                 try:

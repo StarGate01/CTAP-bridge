@@ -1,18 +1,40 @@
-# Virtual WebAuthn Authenticator
-This repository contains the development of a Virtual CTAP2 WebAuthn authenticator. The authenticator is intended to provide a platform for testing and development of WebAuthn/CTAP2 protocols and extensions.
+# FIDO2 PC/SC CTAPHID Bridge
 
-It provides a code base for two kinds of authenticators. Firstly, a software only authenticator, second, a proof of concept implementation of a Trusted Platform Module (TPM) based authenticator, with associated interfaces and libraries for using a TPM as the underlying credential store. It is the first in a series of open source contributions that we will make in the area of WebAuthn authenticator platforms.
+This project provides a translation bridge for NFCCTAP authenticators connected via PC/SC to a virtual USB device using CTAPHID. This enables software which only implements support for USB CTAPHID to use NFC FIDO2 tokens via PC/SC as well.
 
-There is documentation within the code repository and an accompanying technical report on [Arxiv](http://arxiv.org/abs/2108.04131).
-
-The code was produced as part of the [EPSRC project](https://gow.epsrc.ukri.org/NGBOViewGrant.aspx?GrantRef=EP/N028295/1) that focused on Data to Improve the Customer Experience (DICE). The project's main application domain was intelligent transport systems (ITS) but the scope included ensuring security and data privacy when using web services, for example in the case of [smart ticketing](https://doi.org/10.1109/TDSC.2019.2940946) and [emerging technologies](https://doi.org/10.1007/978-3-030-64455-0_2) that could be applicable in the ITS domain.
-
-Development Team:
-* Chris Culnane,
-* Chris Newton
-* Helen Treharne
+This project has been forked from the *Virtual WebAuthn Authenticator* project at https://github.com/UoS-SCCS/VirtualWebAuthn , which provides a fully virtualized authenticator. This implementation has been removed and replaced by the bridging code, only the HID and CTAP drivers are still used. For more information and documentation on CTAP2, see that repository, this fork has been stripped down to the bare minimum.
 
 ## Setup
-Setup instructions for the TPM and the Virtual Authenticator are available as follows:
-* [TPM Setup](./tpm/README.md)
-* [Virtual Authenticator Setup](./SETUP.md)
+
+Linux is required, or any other POSIX system which supports configFS and USB gadgets.
+
+### Kernel
+
+Ensure that the modules `dummy_hcd` and `libcomposite` are loaded. The directory `/sys/kernel/config/usb_gadget` should be available.
+
+The Linux kernel has to built with these configuration option to enable USB gadget, the USB host emulator, and config FS support. This is usually the case if you use a standard kernel.
+
+```
+USB y
+USB_GADGET y
+USB_CONFIGFS y
+USB_CONFIGFS_F_FS y
+```
+
+### USB config
+
+The scripts in `scripts/` use config FS to setup the USB Gadget. 
+
+The USB ID `16c0:05df` belongs to the authors of the original VirtualWebAuthn repository, it is recommended to change it. Make sure to then adjust the udev rules as well.
+
+You can lso change the manufacturer name, product name, and serial number if you want to.
+### Udev config
+
+Udev has to be configures to allow access to the emulated USB device as well. This will also setup a symlink `/dev/ctaphid` to the emulated USB device, which is used by the scripts.
+
+```
+KERNEL=="hidg[0-9]", SUBSYSTEM=="hidg", SYMLINK+="ctaphid", MODE+="0666", TAG+="uaccess"
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="05df", MODE+="0666", TAG+="uaccess"
+```
+
+If your distribution uses `plugdev`, add `,  GROUP="plugdev"` to both lines.

@@ -124,23 +124,24 @@ class Bridge():
             data_out_remain = len(cbor_data)
             while(data_out_remain > 0):
                 nfc_data_out = [ 0x80, 0x10, 0x00, 0x00 ]
-                last_chain = True
                 data_out_size = data_out_remain
-                if (data_out_remain > 256):
-                    last_chain = False
-                    data_out_size = 256
-                    data_out_remain -= 256
-                    data_out_index += 256
+                data_out_index_prev = data_out_index
+                if (data_out_remain > 255):
+                    data_out_size = 255
+                    data_out_remain -= 255
+                    data_out_index += 255
                     nfc_data_out[0] = 0x90
                 else:
+                    # Last chunk
                     data_out_remain = 0
-
                 nfc_data_out += [ data_out_size ]
-                nfc_data_out += cbor_data[data_out_index:(data_out_index + data_out_size)]
+                nfc_data_out += cbor_data[data_out_index_prev:(data_out_index_prev + data_out_size)]
                 nfc_data_out += [ 0x00 ]
 
-                # Chaining in
+                # Transmit
                 nfc_res, sw1, sw2 = self._card.transmit(nfc_data_out)
+
+                # Chaining in
                 data_in_done = False
                 data_in_first = True
                 ctap_err = CTAP_STATUS_CODE.CTAP1_ERR_OTHER
@@ -163,15 +164,18 @@ class Bridge():
                         # Success
                         data_in_done = True
                         if(data_in_first):
-                            ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
+                            ctap_err = CTAP_STATUS_CODE.CTAP2_OK
+                            if(len(nfc_res) > 0):
+                                ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
                         if(not ctap_err is CTAP_STATUS_CODE.CTAP2_OK):
                             log.error("CTAP error: %s", ctap_err)
                             raise CTAPHIDException(ctap_err)
                         else:
-                            if(data_in_first):
-                                res += bytes(nfc_res[1:])
-                            else:
-                                res += bytes(nfc_res)
+                            if(len(nfc_res) > 0):
+                                if(data_in_first):
+                                    res += bytes(nfc_res[1:])
+                                else:
+                                    res += bytes(nfc_res)
 
         except BridgeException as e:
             err = e

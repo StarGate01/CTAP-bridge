@@ -135,7 +135,7 @@ class Bridge():
 
     def process_wink(self, payload:bytes, keep_alive: CTAPHIDKeepAlive)->bytes:
         log.info("WINK received")
-        os.system(scripts / "notify_wink.sh")
+        os.system(scripts / "notify.sh 'FIDO2 Token' 'A service requests your attention.'")
         return bytes([])
 
     def get_version(self)->AuthenticatorVersion:
@@ -160,6 +160,7 @@ def monitor():
             try:
                 card = request.waitforcard()
                 log.info("Found FIDO2 card on %s", str(card.connection.getReader()))
+                os.system(scripts / ("notify.sh 'FIDO2 Token' 'Found FIDO2 token on " + str(card.connection.getReader()) + "'"))
                 bridge.set_card(card.connection)
             except:
                 try:

@@ -249,9 +249,10 @@ class CTAPHID(USBHIDListener):
                     transaction.set_response(CTAPHIDWinkResponse(self._transaction.get_cid(),resp))
                     self.send_response(transaction)
                 except BridgeException as exc:
-                    auth.error("Exception from authenticator",exc_info=True)
+                    auth.error("Exception from authenticator: %s", exc)
                     self.send_error_response(CTAPHIDCBORResponse(msg_request.get_cid(),
                         exc.get_error_code()))
+                    self._authenticator.shutdown()
 
 
     def process_lock_request(self, msg_request: CTAPHIDLockRequest):
@@ -320,9 +321,10 @@ class CTAPHID(USBHIDListener):
                         ctap.constants.CTAP_STATUS_CODE.CTAP2_OK,resp))
                     self.send_response(transaction)
                 except BridgeException as exc:
-                    auth.error("Exception from authenticator", exc_info=True)
+                    auth.error("Exception from authenticator: %s", exc)
                     self.send_error_response(CTAPHIDCBORResponse(msg_request.get_cid(),
                         exc.get_error_code()))
+                    self._authenticator.shutdown()
                 except CTAPHIDException as exc:
                     ctaplog.error("Exception processing CTAP HID",exc_info=True)
                     self.send_error_response(CTAPHIDErrorResponse(msg_request.get_cid(),

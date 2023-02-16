@@ -7,7 +7,7 @@ from pathlib import Path
 
 from hid.ctap import CTAPHID
 from hid.usb import USBHID
-from ctap.constants import AUTHN_CMD
+from ctap.constants import AUTHN_CMD, CTAP_STATUS_CODE
 from ctap.keep_alive import CTAPHIDKeepAlive
 from bridge.datatypes import AuthenticatorVersion, BridgeException
 
@@ -28,6 +28,8 @@ KEEP_ALIVE_TIME_MS=15000
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
 APDU_SELECT_RESP = [0x46, 0x49, 0x44, 0x4F, 0x5F, 0x32, 0x5F, 0x30]
 APDU_DESELECT = [0x80, 0x12, 0x01, 0x00]
+
+scripts = Path(__file__).parent.resolve() / "scripts"
 
 class FIDO2CardType(CardType):
     def matches(self, atr, reader=None): 
@@ -56,8 +58,9 @@ class Bridge():
         self._usbdevice = None
         self._usbhid = None
         self._ctaphid = None
+        self._shutdown_callback = None
      
-    def shutdown(self):
+    def shutdown(self, skip_callback=False):
         if(not self._usbhid is None):
             self._usbhid.shutdown()
         try:
@@ -65,14 +68,23 @@ class Bridge():
             self._card.disconnect()
         except:
             pass
+        log.debug("Tearing down USB device")
+        os.system(scripts / "teardown_ctaphid.sh")
+        time.sleep(1)
+        if(not skip_callback):
+            self._shutdown_callback()
 
-    def start(self, card:CardConnection):
+    def start(self, card:CardConnection, shutdown_callback):
+        self._shutdown_callback = shutdown_callback
         self._card = card
+        self._card.addObserver(LoggingCardConnectionObserver())
         try:
             self._card.connect()
             self._card.transmit(APDU_SELECT)
         except:
             return False
+        log.debug("Setting up USB device")
+        os.system(scripts / "setup_ctaphid.sh")
         timeout = 0
         while not os.path.exists("/dev/ctaphid"):
             time.sleep(0.05)
@@ -91,6 +103,7 @@ class Bridge():
         keep_alive.start(KEEP_ALIVE_TIME_MS)
         cmd = cbor_data[:1]
         log.debug("Received %s CBOR: %s", AUTHN_CMD(cmd).name, cbor_data.hex())
+
         res = bytes([])
 
         try:
@@ -99,10 +112,8 @@ class Bridge():
         except Exception as e:
             log.error("Card error: %s, terminating connection", e)
             keep_alive.stop()
-            teardown()
-            time.sleep(0.5)
-            monitor()
-
+            raise BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, e)
+  
         keep_alive.stop()
         return res
 
@@ -113,30 +124,21 @@ class Bridge():
         return VERSION
 
 
-scripts = Path(__file__).parent.resolve() / "scripts"
 bridge = Bridge()
+term = False
 
 def signal_handler(sig, frame):
-    teardown()
+    bridge.shutdown(True)
     sys.exit(0)
-
-def teardown():
-    bridge.shutdown()
-    log.debug("Tearing down USB device")
-    os.system(scripts / "teardown_ctaphid.sh")
-
+    
 def monitor():
     request = CardRequest(timeout=None, cardType=FIDO2CardType())
     log.info("Waiting for FIDO2 card")
     card = request.waitforcard()
     log.info("Found FIDO2 card on %s", str(card.connection.getReader()))
-    log.debug("Setting up USB device")
-    os.system(scripts / "setup_ctaphid.sh")
-    card.connection.addObserver(LoggingCardConnectionObserver())
-    done = bridge.start(card.connection)
+    done = bridge.start(card.connection, monitor)
     if(not done):
-        teardown()
-        time.sleep(1)
+        bridge.shutdown()
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)

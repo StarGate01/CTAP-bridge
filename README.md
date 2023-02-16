@@ -6,7 +6,9 @@ This project has been forked from the *Virtual WebAuthn Authenticator* project a
 
 ## Setup
 
-Linux is required, or any other POSIX system which supports configFS and USB gadgets.
+Linux is required, or any other POSIX system which supports configFS, USB gadgets, and pyUSB via libusb.
+
+If your system has a host USB OTG emulation chip, you can load that module instead of the dummy driver to proxy the connection to a physical interface.
 
 ### Kernel
 
@@ -25,9 +27,9 @@ USB_CONFIGFS_F_FS y
 
 The scripts in `scripts/` use config FS to setup the USB Gadget. 
 
-The USB ID `16c0:05df` belongs to the authors of the original VirtualWebAuthn repository, it is recommended to change it. Make sure to then adjust the udev rules as well.
+The USB ID `1209:000C` is a testing code with belongs to https://pid.codes/. Make sure to then adjust the udev rules as well if you decide to change it.
 
-You can lso change the manufacturer name, product name, and serial number if you want to.
+You can also change the manufacturer name, product name, and serial number if you want to.
 ### Udev config
 
 Udev has to be configures to allow access to the emulated USB device as well. This will also setup a symlink `/dev/ctaphid` to the emulated USB device, which is used by the scripts.

@@ -252,7 +252,9 @@ class CTAPHIDMsgRequest(CTAPHIDCMD):
         return self._payload[1:]
 
     def verify(self):
-        print("ERROR WE SHOULDN'T RECEIVE THIS MESSAGE")
+        """
+        We don't verify the construction of requests
+        """
 
 class CTAPHIDMsgResponse(CTAPHIDCMD):
     """CTAP MSG Response consists of the following:

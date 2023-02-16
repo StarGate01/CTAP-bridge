@@ -90,7 +90,7 @@ class CTAPHIDKeepAlive():
         self._max = max_val/1000
         self._keep_alive_thread = threading.Thread(target=self._keep_alive)
         self._running = True
-        self._keep_alive_thread.setDaemon(True)
+        self._keep_alive_thread.daemon = True
         self._keep_alive_thread.start()
 
     def stop(self):
@@ -122,7 +122,7 @@ class CTAPHIDKeepAlive():
             time.sleep(self._interval)
             self._elapsed = self._elapsed + self._interval
             if self._elapsed > self._max:
-                log.warn("Max keep-alive exceeded - will stop")
+                log.warning("Max keep-alive exceeded - will stop")
                 self._running = False
         log.info("Keep-alive ended")
         self._cid = None

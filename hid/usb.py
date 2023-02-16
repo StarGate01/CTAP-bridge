@@ -68,10 +68,10 @@ class USBHID:
         self._is_listening = True
         self._running = True
         self._read_thread = threading.Thread(target=self._listen)
-        self._read_thread.setDaemon(True)
+        self._read_thread.daemon = True
         self._read_thread.start()
         self._write_thread = threading.Thread(target=self._write)
-        self._write_thread.setDaemon(True)
+        self._write_thread.daemon = True
         self._write_thread.start()
         log.info("Started listening threads")
 

@@ -124,7 +124,7 @@ class CTAPHID(USBHIDListener):
         """
         if not self._channel_lock_id is None and packet.get_cid() != self._channel_lock_id:
             if datetime.now() < self._channel_lock_expires:
-                ctaplog.warn("Error channel is locked")
+                ctaplog.warning("Error channel is locked")
                 self.send_error_response(CTAPHIDErrorResponse(self._transaction.request.get_cid(),
                     ctap.constants.CTAPHID_ERROR.ERR_CHANNEL_BUSY))
                 return
@@ -252,8 +252,6 @@ class CTAPHID(USBHIDListener):
                     auth.error("Exception from authenticator: %s", exc)
                     self.send_error_response(CTAPHIDCBORResponse(msg_request.get_cid(),
                         exc.get_error_code()))
-                    self._authenticator.shutdown()
-
 
     def process_lock_request(self, msg_request: CTAPHIDLockRequest):
         """Processes a lock request.
@@ -324,7 +322,6 @@ class CTAPHID(USBHIDListener):
                     auth.error("Exception from authenticator: %s", exc)
                     self.send_error_response(CTAPHIDCBORResponse(msg_request.get_cid(),
                         exc.get_error_code()))
-                    self._authenticator.shutdown()
                 except CTAPHIDException as exc:
                     ctaplog.error("Exception processing CTAP HID",exc_info=True)
                     self.send_error_response(CTAPHIDErrorResponse(msg_request.get_cid(),

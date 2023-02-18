@@ -15,7 +15,7 @@ echo "0x1209" > $CONF/idVendor
 echo "0x000C" > $CONF/idProduct
 echo "6548556985" > $CONF/strings/0x409/serialnumber
 echo "CHRZ.de" > $CONF/strings/0x409/manufacturer
-echo "FIDO PC/SC CTAPHID Bridge" > $CONF/strings/0x409/product
+echo "CTAPHID_Bridge" > $CONF/strings/0x409/product
 echo "Configuration 1" > $CONF/configs/c.1/strings/0x409/configuration
 echo 120 > $CONF/configs/c.1/MaxPower
 ln -s $CONF/functions/hid.usb0 $CONF/configs/c.1

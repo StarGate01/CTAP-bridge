@@ -147,7 +147,7 @@ class CTAPHID(USBHIDListener):
                 self._transaction.set_request(ctap_msg)
                 ctaplog.debug("Created transaction: %s", self._transaction)
         elif packet.CMDTYPE == ctap.constants.CMD_TYPE.CONTINUATION:
-            ctaplog.info("Received Continuation Packet - seqNo: %s", packet.get_sequence())
+            ctaplog.debug("Received Continuation Packet - seqNo: %s", packet.get_sequence())
             self._transaction.request.append_continuation_packet(packet)
 
         #If we have finished receiving packets, process the request
@@ -175,7 +175,7 @@ class CTAPHID(USBHIDListener):
                     exception.get_error_code()))
 
         else:
-            ctaplog.info("Message incomplete remaining bytes: %s",
+            ctaplog.debug("Message incomplete remaining bytes: %s",
                 self._transaction.request.remaining_bytes)
 
     def send_error_response(self, msg_response: CTAPHIDErrorResponse, is_init_error:bool=False):

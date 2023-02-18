@@ -124,5 +124,5 @@ class CTAPHIDKeepAlive():
             if self._elapsed > self._max:
                 log.warning("Max keep-alive exceeded - will stop")
                 self._running = False
-        log.info("Keep-alive ended")
+        log.debug("Keep-alive ended")
         self._cid = None

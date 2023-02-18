@@ -18,6 +18,7 @@
             (python3.withPackages (ps: with ps; [
               pyscard
               pyusb
+              cbor2
             ]))
           ];
         };

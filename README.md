@@ -1,6 +1,6 @@
 # FIDO2 PC/SC CTAPHID Bridge
 
-This project provides a translation bridge for NFCCTAP authenticators connected via PC/SC to a virtual USB device using CTAPHID. This enables software which only implements support for USB CTAPHID (e.g. Firefox and Chrome on Linux) to use NFC FIDO2 tokens via PC/SC as well. Fragmentation is handled using APDU chaining.
+This project provides a translation bridge for NFCCTAP authenticators connected via PC/SC to a virtual USB device using CTAPHID. This enables software which only implements support for USB CTAPHID (e.g. Firefox and Chrome on Linux) to use NFC FIDO2 tokens via PC/SC as well. Fragmentation can be set using the `-f` switch.
 
 This project has been forked from the *Virtual WebAuthn Authenticator* project at https://github.com/UoS-SCCS/VirtualWebAuthn , which provides a fully virtualized authenticator. This implementation has been removed and replaced by the bridging code, only the HID and CTAP drivers are still used. For more information and documentation on CTAP2, see that repository, this fork has been stripped down to the bare minimum.
 

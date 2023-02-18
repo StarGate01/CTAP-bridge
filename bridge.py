@@ -266,8 +266,8 @@ def monitor():
             if(not card is None):
                 try:
                     card.connection.connect()
-                except:
-                    log.info("Card connection broke")
+                except Exception as e:
+                    log.info("Card connection broke: %s", e)
                     log.info("Monitoring for FIDO2 cards")
                     try:
                         monitor_paused.release()

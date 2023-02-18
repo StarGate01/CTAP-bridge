@@ -30,7 +30,7 @@ log = logging.getLogger('bridge')
 log.setLevel(logging.DEBUG)
 
 VERSION = AuthenticatorVersion(1,0,0,0)
-KEEP_ALIVE_TIME_MS=12000000
+KEEP_ALIVE_TIME_MS=120000000
 
 chaining = True
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
@@ -223,10 +223,17 @@ class Bridge():
         if(not err is None):
             if(len(cbor_data) > 1):
                 log.debug("Failing CBOR command: %s, payload:", AUTHN_CMD(cbor_data[:1]).name)
-                log.debug(json.dumps(cbor2.loads(cbor_data[1:]), indent=2, cls=BytesEncoder))
+                try:
+                    log.debug(json.dumps(cbor2.loads(cbor_data[1:]), indent=2, cls=BytesEncoder))
+                except:
+                    log.debug("Decoding failed")
             raise err
         else:
-            return res
+            if(not res is None and len(res) > 0):
+                return res
+            else:
+                return bytes([])
+               
 
     def process_wink(self, payload:bytes, keep_alive: CTAPHIDKeepAlive)->bytes:
         log.info("WINK received")

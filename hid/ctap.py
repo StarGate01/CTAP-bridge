@@ -146,6 +146,7 @@ class CTAPHID(USBHIDListener):
                 self._transaction = CTAPHIDTransaction(ctap_msg.get_cid())
                 self._transaction.set_request(ctap_msg)
                 ctaplog.debug("Created transaction: %s", self._transaction)
+            self._authenticator.process_initialization()
         elif packet.CMDTYPE == ctap.constants.CMD_TYPE.CONTINUATION:
             ctaplog.debug("Received Continuation Packet - seqNo: %s", packet.get_sequence())
             self._transaction.request.append_continuation_packet(packet)

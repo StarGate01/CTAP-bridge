@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import sys, signal, os
-import argparse, time
+import argparse, time, datetime
 import logging
 from pathlib import Path
 import threading
@@ -29,16 +29,13 @@ logging.basicConfig()
 log = logging.getLogger('bridge')
 log.setLevel(logging.DEBUG)
 
-VERSION = AuthenticatorVersion(1,0,0,0)
-KEEP_ALIVE_TIME_MS=120000000
+args = None
 
-chaining = True
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
 APDU_SELECT_RESP = [0x46, 0x49, 0x44, 0x4F, 0x5F, 0x32, 0x5F, 0x30]
 APDU_DESELECT = [0x80, 0x12, 0x01, 0x00]
 
 scripts = Path(__file__).parent.resolve() / "scripts"
-monitor_paused = threading.Lock()
 
 class BytesEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -73,28 +70,25 @@ class Bridge():
         self._usbdevice = None
         self._usbhid = None
         self._ctaphid = None
-        self._shutdown_callback = None
+        self._timeout_last = datetime.datetime.now()
+        self._timeout = threading.Thread(target=self.timeout_card)
+        self._timeout_running = True
+        self._timeout_paused = False
+        self._timeout.daemon = True
+        self._timeout.start()
+        self._init_msg_done = False
      
     def shutdown(self):
+        self._timeout_running = False
         if(not self._usbhid is None):
             self._usbhid.shutdown()
-        try:
-            self._card.transmit(APDU_DESELECT)
-            self._card.disconnect()
-        except:
-            pass
+        self.disconnect_card()
         log.info("Tearing down USB device")
         os.system(scripts / "teardown_ctaphid.sh")
 
     def start(self):
         log.info("Setting up USB device")
         os.system(scripts / "setup_ctaphid.sh")
-        timeout = 0
-        while not os.path.exists("/dev/ctaphid"):
-            time.sleep(0.05)
-            timeout += 1
-            if(timeout >= 20):
-                return False
         self._usbdevice = os.open("/dev/ctaphid", os.O_RDWR)
         self._usbhid = USBHID(self._usbdevice)
         self._ctaphid = CTAPHID(self._usbhid)
@@ -103,31 +97,81 @@ class Bridge():
         self._usbhid.start()
         return True
 
-    def set_card(self, card:CardConnection):
-        self._card = card
-        self._card.addObserver(LoggingCardConnectionObserver())
-        self._card.connect()
-        self._card.transmit(APDU_SELECT)
-        dev = usb.core.find(idVendor=0x1209, idProduct=0x000C)
-        if (not dev is None):
-            log.info("Simulating USB re-plug, reloading kernel driver")
-            dev.detach_kernel_driver(0)
-            dev.attach_kernel_driver(0)
-        else:
-            raise Exception("USB interface not found")
+    def disconnect_card(self):
+        try:
+            if(not self._card is None):
+                log.info("Disconnecting from card")
+                try:
+                    self._card.connection.transmit(APDU_DESELECT)
+                except Exception as e:
+                    log.error("Cannot send deselect command to card: %s", e)
+                self._card.connection.disconnect()
+        except Exception as e:
+            log.error("Cannot disconnect from card: %s", e)
+        self._card = None
+        self._init_msg_done = False
+
+    def timeout_card(self):
+        while(self._timeout_running):
+            if(not self._timeout_paused):
+                if ((datetime.datetime.now() - self._timeout_last).total_seconds() > args.idletimeout):
+                    if(not self._card is None):
+                        log.info("Card connection was idle too long, disconnecting.")
+                        self.disconnect_card()
+                        os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'The token was disconnected due to being unused' 'device.removed'"))
+                time.sleep(1)
+
+    def reset_timeout(self):
+        self._timeout_last = datetime.datetime.now()
+
+    def print_failing_cbor(self, cbor):
+        if(len(cbor) > 1):
+            log.debug("Failing CBOR command: %s, payload:", AUTHN_CMD(cbor[:1]).name)
+            try:
+                log.debug(json.dumps(cbor2.loads(cbor[1:]), indent=2, cls=BytesEncoder))
+            except:
+                log.debug("Decoding failed")
+
+    def transmit_card(self, data):
+        if (self._card == None):
+            log.info("Transmit requested, watching for FIDO2 cards ...")
+            request = CardRequest(timeout=args.scantimeout, cardType=FIDO2CardType())
+            try:
+                self._timeout_paused = True
+                self._card = request.waitforcard()
+                self.reset_timeout()
+                self._timeout_paused = False
+                log.info("Found FIDO2 card on %s", str(self._card.connection.getReader()))
+                self._card.connection.addObserver(LoggingCardConnectionObserver())
+                self._card.connection.connect()
+                self._card.connection.transmit(APDU_SELECT)
+                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(self._card.connection.getReader()) + "' 'device.added'"))
+            except Exception as e:
+                self._timeout_paused = False
+                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'No valid token was found in time.' 'device.removed'"))
+                raise NoCardException(hresult=0, message="No valid card presented in time: " + str(e))
+
+        try:
+            self._timeout_paused = True
+            res = self._card.connection.transmit(data)
+            self.reset_timeout()
+            self._timeout_paused = False
+            return res
+        except Exception as e:
+            self._timeout_paused = False
+            log.error("Transmitting to card failed: %s", e)
+            self.disconnect_card()
+            raise e
 
     def process_cbor(self, cbor_data:bytes, keep_alive: CTAPHIDKeepAlive, cid:bytes=None)->bytes:
-        keep_alive.start(KEEP_ALIVE_TIME_MS)
+        keep_alive.start(20000)
         log.info("Transmitting CTAP command: %s", AUTHN_CMD(cbor_data[:1]).name)
 
         res = bytes([])
         err = None
 
         try:
-            if(self._card is None):
-                raise NoCardException(hresult=0, message="No card connected yet")
-
-            if chaining:
+            if (args.frag == "chaining"):
                 # Chaining out
                 data_out_index = 0
                 data_out_remain = len(cbor_data)
@@ -148,7 +192,7 @@ class Bridge():
                     nfc_data_out += [ 0x00 ]
 
                     # Transmit
-                    nfc_res, sw1, sw2 = self._card.transmit(nfc_data_out)
+                    nfc_res, sw1, sw2 = self.transmit_card(nfc_data_out)
 
                     # Chaining in
                     data_in_done = False
@@ -163,12 +207,18 @@ class Bridge():
                                 res += bytes(nfc_res[1:])
                             else:
                                 res += bytes(nfc_res)
-                            nfc_res, sw1, sw2 = self._card.transmit([0x80, 0xC0, 0x00, 0x00, sw2])
+                            nfc_res, sw1, sw2 = self.transmit([0x80, 0xC0, 0x00, 0x00, sw2])
                             continue
                         # APDU error
                         if(not (sw1 == 0x90 and sw2 == 0x00)):
                             log.error("APDU error: sw1=%s, sw2=%s", sw1, sw2)
-                            raise BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, "Unexpected APDU response status code")
+                            if(args.holderror):
+                                log.error("Encountered APDU error response, halting")
+                                self.print_failing_cbor(cbor_data)
+                                self.shutdown()
+                                sys.exit(1)
+                            else:
+                                raise BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, "Unexpected APDU response status code")
                         else:
                             # Success
                             data_in_done = True
@@ -185,7 +235,8 @@ class Bridge():
                                         res += bytes(nfc_res[1:])
                                     else:
                                         res += bytes(nfc_res)
-            else:
+
+            elif (args.frag == "extended"):
                 # Extended APDUs
                 nfc_data_out = [ 0x80, 0x10, 0x00, 0x00, 0x00 ]
                 nfc_data_out += list(len(cbor_data).to_bytes(2, byteorder='big'))
@@ -193,12 +244,18 @@ class Bridge():
                 nfc_data_out += [ 0x00, 0x00 ]
 
                 # Transmit
-                nfc_res, sw1, sw2 = self._card.transmit(nfc_data_out)
+                nfc_res, sw1, sw2 = self.transmit_card(nfc_data_out)
 
                 # APDU error
                 if(not (sw1 == 0x90 and sw2 == 0x00)):
                     log.error("APDU error: sw1=%s, sw2=%s", sw1, sw2)
-                    raise BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, "Unexpected APDU response status code")
+                    if(args.holderror):
+                        log.error("Encountered APDU error response, halting")
+                        self.print_failing_cbor(cbor_data)
+                        self.shutdown()
+                        sys.exit(1)
+                    else:
+                        raise BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, "Unexpected APDU response status code")
                 else:
                     # Success
                     ctap_err = CTAP_STATUS_CODE.CTAP2_OK
@@ -221,12 +278,7 @@ class Bridge():
         keep_alive.stop()
 
         if(not err is None):
-            if(len(cbor_data) > 1):
-                log.debug("Failing CBOR command: %s, payload:", AUTHN_CMD(cbor_data[:1]).name)
-                try:
-                    log.debug(json.dumps(cbor2.loads(cbor_data[1:]), indent=2, cls=BytesEncoder))
-                except:
-                    log.debug("Decoding failed")
+            self.print_failing_cbor(cbor_data)
             raise err
         else:
             if(not res is None and len(res) > 0):
@@ -234,67 +286,50 @@ class Bridge():
             else:
                 return bytes([])
                
-
     def process_wink(self, payload:bytes, keep_alive: CTAPHIDKeepAlive)->bytes:
-        log.info("WINK received")
+        log.info("Wink request received")
         os.system(scripts / "notify.sh 'FIDO2 NFC Token' 'A service requests your attention.' 'device'")
         return bytes([])
 
+    def process_initialization(self):
+        log.info("Initialization request received")
+        if(not self._init_msg_done):
+            self._init_msg_done = True
+            os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'A service requests a connection to your token. " + \
+                "Place your token on a reader within " + str(args.scantimeout) + " seconds.' 'device'"))
+
     def get_version(self)->AuthenticatorVersion:
-        return VERSION
+        return AuthenticatorVersion(1, 0, 0, 0)
 
 
-bridge = Bridge()
-monitor_running = False
+bridge = None
 
 def signal_handler(sig, frame):
-    monitor_paused.release()
-    monitor_running = False
+    log.info("Shutting down")
     bridge.shutdown()
     sys.exit(0)
-
-def monitor():
-    log.info("Monitoring for FIDO2 cards")
-    request = CardRequest(timeout=1, cardType=FIDO2CardType())
-    card = None
-    while(monitor_running):
-        if(monitor_paused.acquire(timeout=0.5, blocking=True)):
-            try:
-                card = request.waitforcard()
-                log.info("Found FIDO2 card on %s", str(card.connection.getReader()))
-                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(card.connection.getReader()) + "' 'device.added'"))
-                bridge.set_card(card.connection)
-            except:
-                try:
-                    monitor_paused.release()
-                except RuntimeError:
-                    pass
-        else:
-            if(not card is None):
-                try:
-                    card.connection.connect()
-                except Exception as e:
-                    log.info("Card connection broke: %s", e)
-                    log.info("Monitoring for FIDO2 cards")
-                    try:
-                        monitor_paused.release()
-                    except RuntimeError:
-                        pass
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = 'FIDO2 PC/SC CTAPHID Bridge')
     parser.add_argument('-f', '--fragmentation', nargs='?', dest='frag', type=str,
         const='chaining', default='chaining', choices=['chaining', 'extended'], 
         help='APDU fragmentation to use (default: chaining)')
+    parser.add_argument('-e', '--exit-on-error', action='store_true', dest='holderror',
+        help='Exit on APDU error responses (for fuzzing)')
+    parser.add_argument('-it', '--idle-timeout', nargs='?', dest='idletimeout', type=int, 
+        const=20, default=20, 
+        help='Idle timeout after which to disconnect from the card in seconds')
+    parser.add_argument('-st', '--scan-timeout', nargs='?', dest='scantimeout', type=int, 
+        const=30, default=30, 
+        help='Time to wait for a token to be scanned')
     args = parser.parse_args()
-    chaining = (args.frag == "chaining")
+
+    log.info("FIDO2 PC/SC CTAPHID Bridge running")
+    log.info("Press Ctrl+C to stop")
+    
+    bridge = Bridge()
+    bridge.start()
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
-    log.info('Press Ctrl+C to stop')
-    bridge.start()
-    monitor_thread = threading.Thread(target=monitor)
-    monitor_running = True
-    monitor_thread.daemon = True
-    monitor_thread.start()
     signal.pause()

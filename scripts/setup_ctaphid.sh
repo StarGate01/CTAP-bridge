@@ -20,3 +20,7 @@ echo "Configuration 1" > $CONF/configs/c.1/strings/0x409/configuration
 echo 120 > $CONF/configs/c.1/MaxPower
 ln -s $CONF/functions/hid.usb0 $CONF/configs/c.1
 echo "dummy_udc.0" > $CONF/UDC
+
+until [ -e /dev/ctaphid ]; do
+    sleep 1
+done

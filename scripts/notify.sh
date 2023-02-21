@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+echo "Sending message: $2"
+
 USERS=$(users)
 
 for USER in $USERS; do

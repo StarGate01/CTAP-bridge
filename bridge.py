@@ -29,6 +29,7 @@ logging.basicConfig()
 log = logging.getLogger('bridge')
 log.setLevel(logging.DEBUG)
 
+bridge = None
 args = None
 
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
@@ -63,6 +64,11 @@ class LoggingCardConnectionObserver(CardConnectionObserver):
             log.debug("APDU CMD: DATA=%s", bytes(ccevent.args[0]).hex())
         elif(ccevent.type == "response"):
             log.debug("APDU RES: SW1=%s, SW2=%s, DATA=%s", hex(ccevent.args[1]), hex(ccevent.args[2]), bytes(ccevent.args[0]).hex())
+        elif(ccevent.type == "connect"):
+            log.debug("Event: Card connected")
+        elif(ccevent.type == "disconnect"):
+            log.debug("Event: Card disconnected")
+            bridge._card = None
 
 class Bridge():
     def __init__(self):
@@ -76,7 +82,7 @@ class Bridge():
         self._timeout_paused = False
         self._timeout.daemon = True
         self._timeout.start()
-        self._init_msg_done = False
+        self._init_msg_last = datetime.datetime.now()
      
     def shutdown(self):
         self._timeout_running = False
@@ -97,19 +103,22 @@ class Bridge():
         self._usbhid.start()
         return True
 
+    def replug_usb(self):
+        dev = usb.core.find(idVendor=0x1209, idProduct=0x000C)
+        if (not dev is None):
+            log.info("Simulating USB re-plug, reloading kernel driver")
+            dev.detach_kernel_driver(0)
+            dev.attach_kernel_driver(0)
+
     def disconnect_card(self):
+        self.replug_usb()
         try:
             if(not self._card is None):
                 log.info("Disconnecting from card")
-                try:
-                    self._card.connection.transmit(APDU_DESELECT)
-                except Exception as e:
-                    log.error("Cannot send deselect command to card: %s", e)
                 self._card.connection.disconnect()
         except Exception as e:
             log.error("Cannot disconnect from card: %s", e)
         self._card = None
-        self._init_msg_done = False
 
     def timeout_card(self):
         while(self._timeout_running):
@@ -132,7 +141,7 @@ class Bridge():
             except:
                 log.debug("Decoding failed")
 
-    def transmit_card(self, data):
+    def ensure_card(self):
         if (self._card == None):
             log.info("Transmit requested, watching for FIDO2 cards ...")
             request = CardRequest(timeout=args.scantimeout, cardType=FIDO2CardType())
@@ -146,11 +155,15 @@ class Bridge():
                 self._card.connection.connect()
                 self._card.connection.transmit(APDU_SELECT)
                 os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(self._card.connection.getReader()) + "' 'device.added'"))
+                return True
             except Exception as e:
                 self._timeout_paused = False
                 os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'No valid token was found in time.' 'device.removed'"))
                 raise NoCardException(hresult=0, message="No valid card presented in time: " + str(e))
+        return False
 
+    def transmit_card(self, data):
+        self.ensure_card()
         try:
             self._timeout_paused = True
             res = self._card.connection.transmit(data)
@@ -276,6 +289,7 @@ class Bridge():
             err = BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, err)
 
         keep_alive.stop()
+        self._init_msg_last = datetime.datetime.now()
 
         if(not err is None):
             self.print_failing_cbor(cbor_data)
@@ -293,16 +307,19 @@ class Bridge():
 
     def process_initialization(self):
         log.info("Initialization request received")
-        if(not self._init_msg_done):
-            self._init_msg_done = True
-            os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'A service requests a connection to your token. " + \
-                "Place your token on a reader within " + str(args.scantimeout) + " seconds.' 'device'"))
+        try:
+            # New card found, simulate re-plug
+            if (self.ensure_card()):
+                self.replug_usb()
+        except:
+            pass
+        if((datetime.datetime.now() - self._init_msg_last).total_seconds() > 5):
+            os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'A service requests a connection to your token. Place your token on a reader.' 'device'"))
+        self._init_msg_last = datetime.datetime.now()
 
     def get_version(self)->AuthenticatorVersion:
         return AuthenticatorVersion(1, 0, 0, 0)
 
-
-bridge = None
 
 def signal_handler(sig, frame):
     log.info("Shutting down")

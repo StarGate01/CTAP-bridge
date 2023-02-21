@@ -5,6 +5,7 @@ import argparse, time, datetime
 import logging
 from pathlib import Path
 import threading
+from random import randrange
 
 import cbor2, json
 
@@ -24,6 +25,7 @@ from smartcard.CardRequest import CardRequest
 from smartcard.CardConnection import CardConnection
 from smartcard.CardConnectionObserver import CardConnectionObserver
 from smartcard.Exceptions import CardConnectionException, NoCardException, CardRequestTimeoutException
+from smartcard.ExclusiveConnectCardConnection import ExclusiveConnectCardConnection
 
 logging.basicConfig()
 log = logging.getLogger('bridge')
@@ -104,11 +106,12 @@ class Bridge():
         return True
 
     def replug_usb(self):
-        dev = usb.core.find(idVendor=0x1209, idProduct=0x000C)
-        if (not dev is None):
-            log.info("Simulating USB re-plug, reloading kernel driver")
-            dev.detach_kernel_driver(0)
-            dev.attach_kernel_driver(0)
+        if (args.simreplug):
+            dev = usb.core.find(idVendor=0x1209, idProduct=0x000C)
+            if (not dev is None):
+                log.info("Simulating USB re-plug, reloading kernel driver")
+                dev.detach_kernel_driver(0)
+                dev.attach_kernel_driver(0)
 
     def disconnect_card(self):
         self.replug_usb()
@@ -151,6 +154,7 @@ class Bridge():
                 self.reset_timeout()
                 self._timeout_paused = False
                 log.info("Found FIDO2 card on %s", str(self._card.connection.getReader()))
+                self._card.connection = ExclusiveConnectCardConnection(self._card.connection)
                 self._card.connection.addObserver(LoggingCardConnectionObserver())
                 self._card.connection.connect()
                 self._card.connection.transmit(APDU_SELECT)
@@ -177,7 +181,7 @@ class Bridge():
             raise e
 
     def process_cbor(self, cbor_data:bytes, keep_alive: CTAPHIDKeepAlive, cid:bytes=None)->bytes:
-        keep_alive.start(20000)
+        keep_alive.start(200000 + randrange(5000))
         log.info("Transmitting CTAP command: %s", AUTHN_CMD(cbor_data[:1]).name)
 
         res = bytes([])
@@ -333,6 +337,8 @@ if __name__ == "__main__":
         help='APDU fragmentation to use (default: chaining)')
     parser.add_argument('-e', '--exit-on-error', action='store_true', dest='holderror',
         help='Exit on APDU error responses (for fuzzing)')
+    parser.add_argument('-nr', '--no-simulate-replug', action='store_false', dest='simreplug',
+        help='Simulate USB re-plugging (for fuzzing)')
     parser.add_argument('-it', '--idle-timeout', nargs='?', dest='idletimeout', type=int, 
         const=20, default=20, 
         help='Idle timeout after which to disconnect from the card in seconds')

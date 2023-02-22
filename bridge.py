@@ -14,7 +14,7 @@ import usb.util
 
 from hid.ctap import CTAPHID
 from hid.usb import USBHID
-from ctap.constants import AUTHN_CMD, CTAP_STATUS_CODE
+from ctap.constants import AUTHN_CMD, CTAP_STATUS_CODE, CTAPHID_KEEPALIVE_STATUS
 from ctap.exceptions import CTAPHIDException
 from ctap.keep_alive import CTAPHIDKeepAlive
 from bridge.datatypes import AuthenticatorVersion, BridgeException
@@ -180,13 +180,29 @@ class Bridge():
             self.disconnect_card()
             raise e
 
+    def requires_up(self, cbor_data):
+        if(len(cbor_data) > 0):
+            cmd = AUTHN_CMD(cbor_data[:1])
+            if(cmd == AUTHN_CMD.AUTHN_MakeCredential or cmd == AUTHN_CMD.AUTHN_Reset):
+                return True
+            if(cmd == AUTHN_CMD.AUTHN_GetAssertion):
+                try:
+                    req = cbor2.loads(cbor_data[1:])
+                    if("5" in res and "up" in res["5"] and res["5"]["up"] == True):
+                        return True
+                except:
+                    pass
+        return False
+           
     def process_cbor(self, cbor_data:bytes, keep_alive: CTAPHIDKeepAlive, cid:bytes=None)->bytes:
-        keep_alive.start(200000 + randrange(5000))
         log.info("Transmitting CTAP command: %s", AUTHN_CMD(cbor_data[:1]).name)
+
+        if(self.requires_up(cbor_data)):
+            log.info("CTAP command requires user presence, sending prompt response")
+            keep_alive.update_status(CTAPHID_KEEPALIVE_STATUS.STATUS_UPNEEDED)
 
         res = bytes([])
         err = None
-
         try:
             if (args.frag == "chaining"):
                 # Chaining out
@@ -245,7 +261,7 @@ class Bridge():
                                     ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
                             if(not ctap_err is CTAP_STATUS_CODE.CTAP2_OK):
                                 log.error("CTAP error: %s", ctap_err)
-                                raise CTAPHIDException(ctap_err)
+                                raise CTAPHIDException(ctap_err, "CTAP error response from authenticator")
                             else:
                                 if(len(nfc_res) > 0):
                                     if(data_in_first):
@@ -280,7 +296,7 @@ class Bridge():
                         ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
                     if(not ctap_err is CTAP_STATUS_CODE.CTAP2_OK):
                         log.error("CTAP error: %s", ctap_err)
-                        raise CTAPHIDException(ctap_err)
+                        raise CTAPHIDException(ctap_err, "CTAP error response from authenticator")
                     else:
                         res += bytes(nfc_res[1:])
 
@@ -292,7 +308,7 @@ class Bridge():
             log.error("Card error: %s", e)
             err = BridgeException(CTAP_STATUS_CODE.CTAP1_ERR_OTHER, err)
 
-        keep_alive.stop()
+        keep_alive.update_status(CTAPHID_KEEPALIVE_STATUS.STATUS_PROCESSING)
         self._init_msg_last = datetime.datetime.now()
 
         if(not err is None):

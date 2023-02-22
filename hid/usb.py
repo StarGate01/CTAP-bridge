@@ -124,7 +124,10 @@ class USBHID:
         """
         while self._running:
             transaction = self._write_queue.get()
-            usblog.debug("Got transaction to write %s",transaction)
+            if(transaction.response.get_cid() == None):
+                usblog.debug("Transaction response has no channel ID, skipping")
+                continue
+            usblog.debug("Got transaction to write %s", transaction)
             packets = transaction.response.get_hid_packets()
             for packet in packets:
                 usblog.debug("\twriting bytes from packet: %s", packet.get_bytes().hex())

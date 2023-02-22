@@ -313,6 +313,7 @@ class CTAPHID(USBHIDListener):
             transaction  = self.get_channel(msg_request.get_cid())
 
             if not self._authenticator is None:
+                self._keep_alive.start(20000)
                 try:
                     resp = self._authenticator.process_cbor(msg_request.get_payload(),
                         self._keep_alive)
@@ -327,8 +328,7 @@ class CTAPHID(USBHIDListener):
                     ctaplog.error("Exception processing CTAP HID: %s", exc)
                     self.send_error_response(CTAPHIDErrorResponse(msg_request.get_cid(),
                         exc.get_error_code()))
-
-
+                self._keep_alive.stop()
 
     def process_msg_request(self, msg_request: CTAPHIDMsgRequest):
         """Process a MSG request. This is currently not implemented

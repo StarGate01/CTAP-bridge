@@ -229,7 +229,7 @@ class CTAPHIDCMD(ABC):
             return CTAPHIDCancelRequest(packet)
         if packet.get_cmd() == ctap.constants.CTAP_CMD.CTAPHID_PING:
             return CTAPHIDPingRequest(packet)
-        raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_CMD,"Unknown Command")
+        raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_CMD, "Unknown Command: " + str(packet.get_cmd()))
 
 class CTAPHIDMsgRequest(CTAPHIDCMD):
     """CTAP2 MSG Request
@@ -292,7 +292,7 @@ class CTAPHIDCancelRequest(CTAPHIDCMD):
 
     def verify(self):
         if len(self._payload)>0:
-            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN)
+            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN, "Cancel request verification failed")
 
 
 class CTAPHIDCancelResponse(CTAPHIDCMD):
@@ -364,7 +364,7 @@ class CTAPHIDWinkRequest(CTAPHIDCMD):
 
     def verify(self):
         if len(self._payload)>0:
-            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN)
+            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN, "Wink request verification failed")
 
 class CTAPHIDWinkResponse(CTAPHIDCMD):
     """CTAP Wink Response consists of:
@@ -400,7 +400,7 @@ class CTAPHIDPingRequest(CTAPHIDCMD):
 
     def verify(self):
         if not len(self._payload) == self._bcnt:
-            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN)
+            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN, "Ping request verification failed")
 
 class CTAPHIDPingResponse(CTAPHIDCMD):
     """CTAP Ping Response consists of:
@@ -435,12 +435,12 @@ class CTAPHIDLockRequest(CTAPHIDCMD):
 
     def verify(self):
         if not len(self._payload) == self._bcnt:
-            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN)
+            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN, "Lock request verification failed: payload != bcnt")
         if self.get_length() > 1:
-            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN)
+            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN, "Lock request verification failed: length > 1")
         lock_time = int.from_bytes( self.get_payload(),"big")
         if lock_time < 0 or lock_time > 10:
-            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_PAR)
+            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_PAR, "Lock request verification failed: lock_time")
 
     def get_lock_time(self)->int:
         """Get the lock time requested
@@ -497,7 +497,7 @@ class CTAPHIDCBORRequest(CTAPHIDCMD):
 
     def verify(self):
         if self._bcnt != len(self._payload):
-            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN)
+            raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_LEN, "CBOR request verification failed: payload != bcnt")
         try:
             ctap.constants.AUTHN_CMD(self._payload[0].to_bytes(1,"big"))
         except ValueError:
@@ -505,7 +505,7 @@ class CTAPHIDCBORRequest(CTAPHIDCMD):
                 int.from_bytes(ctap.constants.AUTHN_CMD.AUTHN_VendorFirst.value,"big") \
                 and self._ctap_cmd <= int.from_bytes(
                     ctap.constants.AUTHN_CMD.AUTHN_VendorLast.value,"big")):
-                raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_PAR)
+                raise CTAPHIDException(ctap.constants.CTAPHID_ERROR.ERR_INVALID_PAR, "CBOR request verification failed: value error")
 
 
 

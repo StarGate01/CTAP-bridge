@@ -182,16 +182,16 @@ class Bridge():
 
     def requires_up(self, cbor_data):
         if(len(cbor_data) > 0):
-            cmd = AUTHN_CMD(cbor_data[:1])
-            if(cmd == AUTHN_CMD.AUTHN_MakeCredential or cmd == AUTHN_CMD.AUTHN_Reset):
-                return True
-            if(cmd == AUTHN_CMD.AUTHN_GetAssertion):
-                try:
+            try:
+                cmd = AUTHN_CMD(cbor_data[:1])
+                if(cmd == AUTHN_CMD.AUTHN_MakeCredential or cmd == AUTHN_CMD.AUTHN_Reset):
+                    return True
+                if(cmd == AUTHN_CMD.AUTHN_GetAssertion):
                     req = cbor2.loads(cbor_data[1:])
                     if("5" in res and "up" in res["5"] and res["5"]["up"] == True):
                         return True
-                except:
-                    pass
+            except:
+                pass
         return False
            
     def process_cbor(self, cbor_data:bytes, keep_alive: CTAPHIDKeepAlive, cid:bytes=None)->bytes:

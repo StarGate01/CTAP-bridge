@@ -2,7 +2,7 @@
 
 This project provides a translation bridge for NFCCTAP authenticators connected via PC/SC to a virtual USB device using CTAPHID. This enables software which only implements support for USB CTAPHID (e.g. Firefox and Chrome on Linux) to use NFC FIDO2 tokens via PC/SC as well. Fragmentation can be set using the `-f` switch.
 
-This project has been forked from the *Virtual WebAuthn Authenticator* project at https://github.com/UoS-SCCS/VirtualWebAuthn , which provides a fully virtualized authenticator. This implementation has been removed and replaced by the bridging code, only the HID and CTAP drivers are still used. For more information and documentation on CTAP2, see that repository, this fork has been stripped down to the bare minimum.
+This project has been forked from the *Virtual WebAuthn Authenticator* project at https://github.com/UoS-SCCS/VirtualWebAuthn , which provides a fully virtualized authenticator. This implementation has been removed and replaced by the bridging code, only the HID and CTAP layers are still used. For more information and documentation on CTAP2, see that repository, this fork has been stripped down to the bare minimum.
 
 ## Setup
 
@@ -42,3 +42,26 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16c0", ATTRS{idProduct
 ```
 
 If your distribution uses `plugdev`, add `,  GROUP="plugdev"` to both lines.
+
+## Usage
+
+See the help text for command line flags:
+
+```
+usage: bridge.py [-h] [-f [{chaining,extended}]] [-e] [-nr] [-it [IDLETIMEOUT]] [-st [SCANTIMEOUT]] [-v]
+
+FIDO2 PC/SC CTAPHID Bridge
+
+options:
+  -h, --help            show this help message and exit
+  -f [{chaining,extended}], --fragmentation [{chaining,extended}]
+                        APDU fragmentation to use (default: chaining)
+  -e, --exit-on-error   Exit on APDU error responses (for fuzzing)
+  -nr, --no-simulate-replug
+                        Do not simulate USB re-plugging (for fuzzing)
+  -it [IDLETIMEOUT], --idle-timeout [IDLETIMEOUT]
+                        Idle timeout after which to disconnect from the card in seconds
+  -st [SCANTIMEOUT], --scan-timeout [SCANTIMEOUT]
+                        Time to wait for a token to be scanned
+  -v, --verbose         Log verbose APDU data
+```

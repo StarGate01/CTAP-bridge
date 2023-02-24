@@ -1,16 +1,8 @@
 #!/usr/bin/env python3
 
-import sys, signal, os
-import argparse, time, datetime
-import logging
+import sys, signal, os, logging, threading, argparse, time, datetime
+import cbor2, json, usb.core, usb.util
 from pathlib import Path
-import threading
-from random import randrange
-
-import cbor2, json
-
-import usb.core
-import usb.util
 
 from hid.ctap import CTAPHID
 from hid.usb import USBHID
@@ -36,7 +28,6 @@ args = None
 
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
 APDU_SELECT_RESP = [0x46, 0x49, 0x44, 0x4F, 0x5F, 0x32, 0x5F, 0x30]
-APDU_DESELECT = [0x80, 0x12, 0x01, 0x00]
 
 scripts = Path(__file__).parent.resolve() / "scripts"
 
@@ -63,13 +54,17 @@ class FIDO2CardType(CardType):
 class LoggingCardConnectionObserver(CardConnectionObserver):
     def update (self, cardconnection, ccevent):
         if(ccevent.type == "command"):
-            log.debug("APDU CMD: DATA=%s", bytes(ccevent.args[0]).hex())
+            log.info("APDU command: %s bytes data", len(ccevent.args[0]))
+            if(args.verbose):
+               log.debug("APDU command: DATA=%s", bytes(ccevent.args[0]).hex())    
         elif(ccevent.type == "response"):
-            log.debug("APDU RES: SW1=%s, SW2=%s, DATA=%s", hex(ccevent.args[1]), hex(ccevent.args[2]), bytes(ccevent.args[0]).hex())
+            log.info("APDU response: SW1=%s, SW2=%s, %s bytes data", hex(ccevent.args[1]), hex(ccevent.args[2]), len(ccevent.args[0]))
+            if(args.verbose):
+                log.debug("APDU response: DATA=%s", bytes(ccevent.args[0]).hex())
         elif(ccevent.type == "connect"):
-            log.debug("Event: Card connected")
+            log.info("Event: Card connected")
         elif(ccevent.type == "disconnect"):
-            log.debug("Event: Card disconnected")
+            log.info("Event: Card disconnected")
             bridge._card = None
 
 class Bridge():
@@ -130,19 +125,11 @@ class Bridge():
                     if(not self._card is None):
                         log.info("Card connection was idle too long, disconnecting.")
                         self.disconnect_card()
-                        os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'The token was disconnected due to being unused.' 'device.removed'"))
+                        os.system(scripts / ("notify.sh 'The token was disconnected due to being unused.' 'device.removed'"))
                 time.sleep(1)
 
     def reset_timeout(self):
         self._timeout_last = datetime.datetime.now()
-
-    def print_failing_cbor(self, cbor):
-        if(len(cbor) > 1):
-            log.debug("Failing CBOR command: %s, payload:", AUTHN_CMD(cbor[:1]).name)
-            try:
-                log.debug(json.dumps(cbor2.loads(cbor[1:]), indent=2, cls=BytesEncoder))
-            except:
-                log.debug("Decoding failed")
 
     def ensure_card(self):
         if (self._card == None):
@@ -158,11 +145,11 @@ class Bridge():
                 self._card.connection.addObserver(LoggingCardConnectionObserver())
                 self._card.connection.connect()
                 self._card.connection.transmit(APDU_SELECT)
-                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(self._card.connection.getReader()) + ".' 'device.added'"))
+                os.system(scripts / ("notify.sh 'Found token on " + str(self._card.connection.getReader()) + ".' 'device.added'"))
                 return True
             except Exception as e:
                 self._timeout_paused = False
-                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'No valid token was found in time.' 'device.removed'"))
+                os.system(scripts / ("notify.sh 'No valid token was found in time.' 'device.removed'"))
                 raise NoCardException(hresult=0, message="No valid card presented in time: " + str(e))
         return False
 
@@ -196,6 +183,14 @@ class Bridge():
            
     def process_cbor(self, cbor_data:bytes, keep_alive: CTAPHIDKeepAlive, cid:bytes=None)->bytes:
         log.info("Transmitting CTAP command: %s", AUTHN_CMD(cbor_data[:1]).name)
+        if(args.verbose):
+            if(len(cbor_data) > 1):
+                try:
+                    log.debug("CBOR command payload: " + json.dumps(cbor2.loads(cbor_data[1:]), indent=2, cls=BytesEncoder))
+                except Exception as e:
+                    log.debug("CBOR command payload decoding failed: %s", e)
+            else:
+                log.debug("No CBOR command payload")
 
         if(self.requires_up(cbor_data)):
             log.info("CTAP command requires user presence, sending prompt response")
@@ -247,7 +242,6 @@ class Bridge():
                             log.error("APDU error: sw1=%s, sw2=%s", sw1, sw2)
                             if(args.holderror):
                                 log.error("Encountered APDU error response, halting")
-                                self.print_failing_cbor(cbor_data)
                                 self.shutdown()
                                 sys.exit(1)
                             else:
@@ -284,7 +278,6 @@ class Bridge():
                     log.error("APDU error: sw1=%s, sw2=%s", sw1, sw2)
                     if(args.holderror):
                         log.error("Encountered APDU error response, halting")
-                        self.print_failing_cbor(cbor_data)
                         self.shutdown()
                         sys.exit(1)
                     else:
@@ -312,23 +305,28 @@ class Bridge():
         self._init_msg_last = datetime.datetime.now()
 
         if(not err is None):
-            self.print_failing_cbor(cbor_data)
             raise err
         else:
             if(not res is None and len(res) > 0):
+                if(args.verbose):
+                    try:
+                        log.debug("CBOR response payload: " + json.dumps(cbor2.loads(res), indent=2, cls=BytesEncoder))
+                    except Exception as e:
+                        log.debug("CBOR response payload decoding failed: %s", e)
                 return res
             else:
+                if(args.verbose):
+                    log.debug("No CBOR response payload")
                 return bytes([])
                
     def process_wink(self, payload:bytes, keep_alive: CTAPHIDKeepAlive)->bytes:
         log.info("Wink request received")
-        os.system(scripts / "notify.sh 'FIDO2 NFC Token' 'A service requests your attention.' 'device'")
+        os.system(scripts / "notify.sh 'A service requests your attention.' 'device'")
         return bytes([])
 
     def process_initialization(self):
-        log.info("Initialization request received")
         if((datetime.datetime.now() - self._init_msg_last).total_seconds() > 5):
-            os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'A service requests a connection to your token. Place your token on a reader.' 'device'"))
+            os.system(scripts / ("notify.sh 'A service requests a connection to your token. Place your token on a reader.' 'device'"))
         self._init_msg_last = datetime.datetime.now()
         try:
             # New card found, simulate re-plug
@@ -354,13 +352,13 @@ if __name__ == "__main__":
     parser.add_argument('-e', '--exit-on-error', action='store_true', dest='holderror',
         help='Exit on APDU error responses (for fuzzing)')
     parser.add_argument('-nr', '--no-simulate-replug', action='store_false', dest='simreplug',
-        help='Simulate USB re-plugging (for fuzzing)')
+        help='Do not simulate USB re-plugging (for fuzzing)')
     parser.add_argument('-it', '--idle-timeout', nargs='?', dest='idletimeout', type=int, 
-        const=20, default=20, 
-        help='Idle timeout after which to disconnect from the card in seconds')
+        const=20, default=20,  help='Idle timeout after which to disconnect from the card in seconds')
     parser.add_argument('-st', '--scan-timeout', nargs='?', dest='scantimeout', type=int, 
-        const=30, default=30, 
-        help='Time to wait for a token to be scanned')
+        const=30, default=30, help='Time to wait for a token to be scanned')
+    parser.add_argument('-v', '--verbose', action='store_true', dest='verbose',
+        help='Log verbose APDU data')
     args = parser.parse_args()
 
     log.info("FIDO2 PC/SC CTAPHID Bridge running")

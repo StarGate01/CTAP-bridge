@@ -6,7 +6,7 @@ This project has been forked from the *Virtual WebAuthn Authenticator* project a
 
 ## Setup
 
-Linux is required, or any other POSIX system which supports configFS, USB gadgets, and pyUSB via libusb. The script also requires root permissions.
+Linux is required, or any other POSIX system which supports configFS, USB gadgets, and pyUSB via libusb. The script also requires root permissions. It is recommended to run it as a e.g. systemd service.
 
 If your system has a host USB OTG emulation chip, you can load that module instead of the dummy driver to proxy the connection to a physical interface.
 
@@ -42,17 +42,3 @@ KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16c0", ATTRS{idProduct
 ```
 
 If your distribution uses `plugdev`, add `,  GROUP="plugdev"` to both lines.
-
-### Polkit
-
-I highly recommend locking access to the PC/SC interface (or at least the reader you plan to use) down to the root user, not because of security but because Browsers like to lag out if a card is connected. This is a problem because of timeouts! Restriction can be done using e.g. policy kit:
-
-```javascript
-polkit.addRule(function(action, subject) {
-    if (action.id == "org.debian.pcsc-lite.access_card" && action.lookup("reader") == 'ACS ACR122U PICC Interface 00 00') {
-        return polkit.Result.NO;
-    }
-});
-```
-
-Note that you need to use `sudo` for anything else you want to use this interface for in the future.

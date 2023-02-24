@@ -130,7 +130,7 @@ class Bridge():
                     if(not self._card is None):
                         log.info("Card connection was idle too long, disconnecting.")
                         self.disconnect_card()
-                        os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'The token was disconnected due to being unused' 'device.removed'"))
+                        os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'The token was disconnected due to being unused.' 'device.removed'"))
                 time.sleep(1)
 
     def reset_timeout(self):
@@ -158,7 +158,7 @@ class Bridge():
                 self._card.connection.addObserver(LoggingCardConnectionObserver())
                 self._card.connection.connect()
                 self._card.connection.transmit(APDU_SELECT)
-                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(self._card.connection.getReader()) + "' 'device.added'"))
+                os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'Found token on " + str(self._card.connection.getReader()) + ".' 'device.added'"))
                 return True
             except Exception as e:
                 self._timeout_paused = False
@@ -327,15 +327,15 @@ class Bridge():
 
     def process_initialization(self):
         log.info("Initialization request received")
+        if((datetime.datetime.now() - self._init_msg_last).total_seconds() > 5):
+            os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'A service requests a connection to your token. Place your token on a reader.' 'device'"))
+        self._init_msg_last = datetime.datetime.now()
         try:
             # New card found, simulate re-plug
             if (self.ensure_card()):
                 self.replug_usb()
         except:
             pass
-        if((datetime.datetime.now() - self._init_msg_last).total_seconds() > 5):
-            os.system(scripts / ("notify.sh 'FIDO2 NFC Token' 'A service requests a connection to your token. Place your token on a reader.' 'device'"))
-        self._init_msg_last = datetime.datetime.now()
 
     def get_version(self)->AuthenticatorVersion:
         return AuthenticatorVersion(1, 0, 0, 0)

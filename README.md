@@ -48,7 +48,7 @@ If your distribution uses `plugdev`, add `,  GROUP="plugdev"` to both lines.
 See the help text for command line flags:
 
 ```
-usage: bridge.py [-h] [-f [{chaining,extended}]] [-e] [-nr] [-it [IDLETIMEOUT]] [-st [SCANTIMEOUT]] [-v]
+usage: bridge.py [-h] [-f [{chaining,extended}]] [-e] [-nr] [-np] [-it [IDLETIMEOUT]] [-st [SCANTIMEOUT]] [-v]
 
 FIDO2 PC/SC CTAPHID Bridge
 
@@ -59,6 +59,8 @@ options:
   -e, --exit-on-error   Exit on APDU error responses (for fuzzing)
   -nr, --no-simulate-replug
                         Do not simulate USB re-plugging (for fuzzing)
+  -np, --no-simulate-presence
+                        Do not simulate user presence, instead wait for control pipe (for fuzzing)
   -it [IDLETIMEOUT], --idle-timeout [IDLETIMEOUT]
                         Idle timeout after which to disconnect from the card in seconds
   -st [SCANTIMEOUT], --scan-timeout [SCANTIMEOUT]

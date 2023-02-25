@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import sys, signal, os, logging, threading, argparse, time, datetime
-import cbor2, json, usb.core, usb.util
+import sys, signal, os, logging, threading, argparse, time, datetime, select
+import cbor2, json, usb.core, usb.util, setproctitle
 from pathlib import Path
 
 from hid.ctap import CTAPHID
@@ -25,11 +25,13 @@ log.setLevel(logging.DEBUG)
 
 bridge = None
 args = None
+presence = threading.Lock()
 
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
 APDU_SELECT_RESP = [0x46, 0x49, 0x44, 0x4F, 0x5F, 0x32, 0x5F, 0x30]
 
 scripts = Path(__file__).parent.resolve() / "scripts"
+cpipe = Path(__file__).parent.resolve() / "cpipe"
 
 class BytesEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -193,8 +195,20 @@ class Bridge():
                 log.debug("No CBOR command payload")
 
         if(self.requires_up(cbor_data)):
-            log.info("CTAP command requires user presence, sending prompt response")
-            keep_alive.update_status(CTAPHID_KEEPALIVE_STATUS.STATUS_UPNEEDED)
+            present = False
+            if(not args.simpresence) :
+                log.info("Waiting for control pipe to signal user presence")
+                try:
+                    if(not presence.acquire(timeout=5)):
+                        raise Exception("Timeout")
+                    preset = True
+                except Exception as e:
+                    raise BridgeException(CTAP_STATUS_CODE.CTAP2_ERR_USER_ACTION_TIMEOUT, "Cannot acquire presence lock: " + str(e))
+            else:
+                present = True
+            if(present):
+                log.info("CTAP command requires user presence, sending 'waiting for acknowledgment' status")
+                keep_alive.update_status(CTAPHID_KEEPALIVE_STATUS.STATUS_UPNEEDED)
 
         res = bytes([])
         err = None
@@ -339,12 +353,29 @@ class Bridge():
         return AuthenticatorVersion(1, 0, 0, 0)
 
 
-def signal_handler(sig, frame):
+def shutdown_handler(sig, frame):
     log.info("Shutting down")
     bridge.shutdown()
     sys.exit(0)
 
+def presence_thread():
+    with open(cpipe) as fifo:
+        while True:
+            select.select([fifo],[],[fifo])
+            data = fifo.read()
+            if(data.strip() == "p"):
+                log.info("Simulating user presence for pending response")
+                try:
+                    presence.release()
+                except Exception as e:
+                    log.error("Cannot release presence lock: %s", e)
+            elif(data.strip() == "r"):
+                log.info("Signaling external card reset")
+                bridge.disconnect_card()
+
 if __name__ == "__main__":
+    setproctitle.setproctitle('ctap-bridge')
+
     parser = argparse.ArgumentParser(description = 'FIDO2 PC/SC CTAPHID Bridge')
     parser.add_argument('-f', '--fragmentation', nargs='?', dest='frag', type=str,
         const='chaining', default='chaining', choices=['chaining', 'extended'], 
@@ -353,6 +384,8 @@ if __name__ == "__main__":
         help='Exit on APDU error responses (for fuzzing)')
     parser.add_argument('-nr', '--no-simulate-replug', action='store_false', dest='simreplug',
         help='Do not simulate USB re-plugging (for fuzzing)')
+    parser.add_argument('-np', '--no-simulate-presence', action='store_false', dest='simpresence',
+        help='Do not simulate user presence, instead wait for control pipe (for fuzzing)')
     parser.add_argument('-it', '--idle-timeout', nargs='?', dest='idletimeout', type=int, 
         const=20, default=20,  help='Idle timeout after which to disconnect from the card in seconds')
     parser.add_argument('-st', '--scan-timeout', nargs='?', dest='scantimeout', type=int, 
@@ -361,12 +394,23 @@ if __name__ == "__main__":
         help='Log verbose APDU data')
     args = parser.parse_args()
 
+    if(not args.simpresence):
+        try:
+            os.mkfifo(cpipe)
+        except Exception as e:
+            log.error("Cannot create user presence control pipe: %s", e)
+        pr = threading.Thread(target=presence_thread)
+        pr.daemon = True
+        pr.start()
+
     log.info("FIDO2 PC/SC CTAPHID Bridge running")
     log.info("Press Ctrl+C to stop")
     
     bridge = Bridge()
     bridge.start()
 
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    presence.acquire()
+
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
     signal.pause()

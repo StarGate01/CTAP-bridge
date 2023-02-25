@@ -19,6 +19,7 @@
               pyscard
               pyusb
               cbor2
+              setproctitle
             ]))
           ];
         };

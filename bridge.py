@@ -249,7 +249,7 @@ class Bridge():
                                 res += bytes(nfc_res[1:])
                             else:
                                 res += bytes(nfc_res)
-                            nfc_res, sw1, sw2 = self.transmit([0x80, 0xC0, 0x00, 0x00, sw2])
+                            nfc_res, sw1, sw2 = self.transmit_card([0x80, 0xC0, 0x00, 0x00, sw2])
                             continue
                         # APDU error
                         if(not (sw1 == 0x90 and sw2 == 0x00)):
@@ -394,14 +394,13 @@ if __name__ == "__main__":
         help='Log verbose APDU data')
     args = parser.parse_args()
 
-    if(not args.simpresence):
-        try:
-            os.mkfifo(cpipe)
-        except Exception as e:
-            log.error("Cannot create user presence control pipe: %s", e)
-        pr = threading.Thread(target=presence_thread)
-        pr.daemon = True
-        pr.start()
+    try:
+        os.mkfifo(cpipe)
+    except Exception as e:
+        log.error("Cannot create control pipe: %s", e)
+    pr = threading.Thread(target=presence_thread)
+    pr.daemon = True
+    pr.start()
 
     log.info("FIDO2 PC/SC CTAPHID Bridge running")
     log.info("Press Ctrl+C to stop")

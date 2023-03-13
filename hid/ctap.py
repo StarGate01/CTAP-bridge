@@ -313,6 +313,7 @@ class CTAPHID(USBHIDListener):
             transaction  = self.get_channel(msg_request.get_cid())
 
             if not self._authenticator is None:
+                self._keep_alive.set_cid(msg_request.get_cid())
                 self._keep_alive.start(20000)
                 try:
                     resp = self._authenticator.process_cbor(msg_request.get_payload(),

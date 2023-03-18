@@ -28,7 +28,8 @@ args = None
 presence = threading.Lock()
 
 APDU_SELECT = [0x00, 0xA4, 0x04, 0x00, 0x08, 0xA0, 0x00, 0x00, 0x06, 0x47, 0x2F, 0x00, 0x01]
-APDU_SELECT_RESP = [0x46, 0x49, 0x44, 0x4F, 0x5F, 0x32, 0x5F, 0x30]
+APDU_SELECT_RESP_FIDO2 = [0x46, 0x49, 0x44, 0x4F, 0x5F, 0x32, 0x5F, 0x30]
+APDU_SELECT_RESP_U2F = [0x55, 0x32, 0x46, 0x5F, 0x56, 0x32]
 
 scripts = Path(__file__).parent.resolve() / "scripts"
 cpipe = Path(__file__).parent.resolve() / "cpipe"
@@ -47,7 +48,7 @@ class FIDO2CardType(CardType):
                 conn.connect()
                 res, sw1, sw2 = conn.transmit(APDU_SELECT)
                 conn.disconnect()
-                return (sw1 == 0x90 and sw2 == 0x00 and res == APDU_SELECT_RESP)
+                return (sw1 == 0x90 and sw2 == 0x00 and (res == APDU_SELECT_RESP_FIDO2 or res == APDU_SELECT_RESP_U2F))
             except:
                 return False
         else:

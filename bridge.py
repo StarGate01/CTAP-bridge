@@ -270,7 +270,7 @@ class Bridge():
                                     ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
                             if(not ctap_err is CTAP_STATUS_CODE.CTAP2_OK):
                                 log.error("CTAP error: %s", ctap_err)
-                                raise CTAPHIDException(ctap_err, "CTAP error response from authenticator")
+                                raise BridgeException(ctap_err, "CTAP error response from authenticator")
                             else:
                                 if(len(nfc_res) > 0):
                                     if(data_in_first):
@@ -304,13 +304,11 @@ class Bridge():
                         ctap_err = CTAP_STATUS_CODE(nfc_res[0].to_bytes(1, byteorder="little"))
                     if(not ctap_err is CTAP_STATUS_CODE.CTAP2_OK):
                         log.error("CTAP error: %s", ctap_err)
-                        raise CTAPHIDException(ctap_err, "CTAP error response from authenticator")
+                        raise BridgeException(ctap_err, "CTAP error response from authenticator")
                     else:
                         res += bytes(nfc_res[1:])
 
         except BridgeException as e:
-            err = e
-        except CTAPHIDException as e:
             err = e
         except Exception as e:
             log.error("Card error: %s", e)

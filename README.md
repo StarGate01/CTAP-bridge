@@ -14,7 +14,7 @@ For notifications, `notify-send` is used, so make sure it is installed and a sui
 
 ### Kernel
 
-Ensure that the modules `dummy_hcd` and `libcomposite` are loaded. The directory `/sys/kernel/config/usb_gadget` should be available.
+Ensure that the modules `dummy_hcd` (or some other usb driver which supports device mode) and `libcomposite` are loaded. The directory `/sys/kernel/config/usb_gadget` should be available.
 
 The Linux kernel has to built with these configuration option to enable USB gadget, the USB host emulator, and config FS support. This is usually the case if you use a standard kernel.
 

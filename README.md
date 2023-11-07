@@ -8,9 +8,9 @@ This project has been forked from the *Virtual WebAuthn Authenticator* project a
 
 Linux is required, or any other POSIX system which supports configFS, USB gadgets, and pyUSB via libusb. The script also requires root permissions. It is recommended to run it as a e.g. systemd service.
 
-If your system has a host USB OTG emulation chip, you can load that module instead of the dummy driver to proxy the connection to a physical interface.
+If your system has a host USB OTG emulation chip, you can load that module instead of the dummy driver to proxy the connection to a physical interface. For instruction on how to set up a hardware proxy using a Raspberry Pi Zero W 1 and a MAX3421E USB Host chip, see my blog post: https://chrz.de/2023/11/07/fido2-protocol-translation-hardware/ . 
 
-For notifications, `notify-send` is used, so make sure it is installed and a suitable backend exists.
+For notifications, `notify-send` is used, so make sure it is installed and a suitable backend exists if you want to be notified.
 
 ### Kernel
 

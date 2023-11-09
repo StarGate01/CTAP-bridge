@@ -94,7 +94,7 @@ class Bridge():
 
     def start(self):
         log.info("Setting up USB device")
-        os.system(scripts / "setup_ctaphid.sh" + (" composite" if args.composite else ""))
+        os.system(str(scripts / "setup_ctaphid.sh") + (" composite" if args.composite else ""))
         self._usbdevice = os.open("/dev/ctaphid", os.O_RDWR)
         self._usbhid = USBHID(self._usbdevice)
         self._ctaphid = CTAPHID(self._usbhid)

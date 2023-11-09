@@ -36,19 +36,18 @@ You can also change the manufacturer name, product name, and serial number if yo
 
 Udev has to be configures to allow access to the emulated USB device as well. This will also setup a symlink `/dev/ctaphid` to the emulated USB device, which is used by the scripts.
 
-```
-KERNEL=="hidg[0-9]", SUBSYSTEM=="hidg", SYMLINK+="ctaphid", MODE+="0666", TAG+="uaccess"
-KERNEL=="hidraw*", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="16c0", ATTRS{idProduct}=="05df", MODE+="0666", TAG+="uaccess"
-```
+Find the required udev rules in `scripts/udev.rules`. If your distribution uses `plugdev`, add `,  GROUP="plugdev"` to both lines.
 
-If your distribution uses `plugdev`, add `,  GROUP="plugdev"` to both lines.
+### CCID Proxying
 
+If you want to use some other userspace service to also expose a CCID interface on the emulated USB gadget, you can tell the script to set up a composite USB device using the `-c` flag. This requires you to compile and install the `f_ccid` kernel module. This module is not available in mainline Linux, instead you have to apply the patch from https://lkml.org/lkml/diff/2018/5/26/178/1 to your kernel source, and enable the `USB_F_CCID y` option.
+ 
 ## Usage
 
 See the help text for command line flags:
 
 ```
-usage: bridge.py [-h] [-f [{chaining,extended}]] [-e] [-nr] [-np] [-it [IDLETIMEOUT]] [-st [SCANTIMEOUT]] [-v]
+usage: bridge.py [-h] [-f [{chaining,extended}]] [-e] [-nr] [-np] [-it [IDLETIMEOUT]] [-st [SCANTIMEOUT]] [-v] [-c]
 
 FIDO2 PC/SC CTAPHID Bridge
 
@@ -66,4 +65,5 @@ options:
   -st [SCANTIMEOUT], --scan-timeout [SCANTIMEOUT]
                         Time to wait for a token to be scanned
   -v, --verbose         Log verbose APDU data
+  -c, --composite       Set up USB device as a composite device, with a second CCID interface for proxying
 ```

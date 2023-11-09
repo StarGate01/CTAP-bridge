@@ -94,7 +94,7 @@ class Bridge():
 
     def start(self):
         log.info("Setting up USB device")
-        os.system(scripts / "setup_ctaphid.sh")
+        os.system(scripts / "setup_ctaphid.sh" + (" composite" if args.composite else ""))
         self._usbdevice = os.open("/dev/ctaphid", os.O_RDWR)
         self._usbhid = USBHID(self._usbdevice)
         self._ctaphid = CTAPHID(self._usbhid)
@@ -391,6 +391,8 @@ if __name__ == "__main__":
         const=30, default=30, help='Time to wait for a token to be scanned')
     parser.add_argument('-v', '--verbose', action='store_true', dest='verbose',
         help='Log verbose APDU data')
+    parser.add_argument('-c', '--composite', action='store_true', dest='composite',
+        help='Set up USB device as a composite device, with a second CCID interface for proxying')
     args = parser.parse_args()
 
     try:

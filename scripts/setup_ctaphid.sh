@@ -26,7 +26,7 @@ echo 64 > $CONF/functions/hid.ctap0/report_length
 echo -ne "\x06\xd0\xf1\x09\x01\xa1\x01\x09\x20\x15\x00\x26\xff\x00\x75\x08\x95\x40\x81\x02\x09\x21\x15\x00\x26\xff\x00\x75\x08\x95\x40\x91\x02\xc0" > $CONF/functions/hid.ctap0/report_desc
 ln -s $CONF/functions/hid.ctap0 $CONF/configs/c.1
 
-if [ $1 = "composite" ]; then
+if [ "$1" = "composite" ]; then
     # Function 2 - CCID
     mkdir -p $CONF/functions/ccid.sc0
     echo 0x000404FA > $CONF/functions/ccid.sc0/features
@@ -40,6 +40,6 @@ echo $(ls /sys/class/udc) > $CONF/UDC
 until [ -e /dev/ctaphid ]; do
     sleep 1
 done
-until [ $1 != "composite" ] || [ -e /dev/ccidsc ]; do
+until [ "$1" != "composite" ] || [ -e /dev/ccidsc ]; do
     sleep 1
 done

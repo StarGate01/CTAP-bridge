@@ -358,6 +358,7 @@ class AUTHN_CMD(Enum):
     AUTHN_GetNextAssertion = b'\x08'
     AUTHN_BioEnrollment = b'\x09'
     AUTHN_CredentialManagement = b'\x0A'
+    AUTHN_AuthenticatorSelection = b'\x0b'
     AUTHN_PlatformConfig = b'\x0c'
     AUTHN_VendorFirst = b'\x40'
     AUTHN_VendorLast = b'\xBF'

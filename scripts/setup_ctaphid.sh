@@ -10,7 +10,7 @@ echo "0x000C" > $CONF/idProduct
 mkdir -p $CONF/strings/0x409
 echo "6548556985" > $CONF/strings/0x409/serialnumber
 echo "CHRZ.de" > $CONF/strings/0x409/manufacturer
-echo "FIDO/CCID Emulator" > $CONF/strings/0x409/product
+echo "FIDO_CCID_Emulator" > $CONF/strings/0x409/product
 
 # Configuration 1 metadata
 mkdir -p $CONF/configs/c.1

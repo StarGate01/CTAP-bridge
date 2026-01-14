@@ -40,7 +40,9 @@ Find the required udev rules in `scripts/udev.rules`. If your distribution uses 
 
 ### CCID Proxying
 
-If you want to use some other userspace service to also expose a CCID interface on the emulated USB gadget, you can tell the script to set up a composite USB device using the `-c` flag. This requires you to compile and install the `f_ccid` kernel module. This module is not available in mainline Linux, instead you have to apply the patch from https://lkml.org/lkml/diff/2018/5/26/178/1 to your kernel source, and enable the `USB_F_CCID y` option.
+If you want to use some other userspace service to also expose a CCID interface on the emulated USB gadget, you can tell the script to set up a composite USB device using the `-c` flag. This requires you to compile and install the `f_ccid` kernel module. This module is not available in mainline Linux, instead you have to apply the patch from https://gist.github.com/caj380/2de5b9a41797663fdac72e0bdebd9d6c to your kernel source, and enable the `USB_F_CCID y` option.
+
+If you are using an [Orange Pi Zero 2 W](http://www.orangepi.org/html/hardWare/computerAndMicrocontrollers/details/Orange-Pi-Zero-2W.html), you can download a modified OS image that includes the `f_ccid` patch: [here](https://github.com/caj380/orangepi-build/releases/tag/f_ccid)
  
 ## Usage
 
